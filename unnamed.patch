@@ -1,0 +1,2608 @@
+Index: app/src/main/res/xml/ic_launcher.xml
+===================================================================
+diff --git a/app/src/main/res/xml/ic_launcher.xml b/app/src/main/res/xml/ic_launcher.xml
+deleted file mode 100644
+--- a/app/src/main/res/xml/ic_launcher.xml
++++ /dev/null
+@@ -1,5 +0,0 @@
+-<?xml version="1.0" encoding="utf-8"?>
+-<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+-    <background android:drawable="@xml/ic_launcher_background"/>
+-    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+-</adaptive-icon>
+\ No newline at end of file
+Index: app/src/main/res/xml/ic_launcher_background.xml
+===================================================================
+diff --git a/app/src/main/res/xml/ic_launcher_background.xml b/app/src/main/res/xml/ic_launcher_background.xml
+deleted file mode 100644
+--- a/app/src/main/res/xml/ic_launcher_background.xml
++++ /dev/null
+@@ -1,5 +0,0 @@
+-<?xml version="1.0" encoding="utf-8"?>
+-<shape xmlns:android="http://schemas.android.com/apk/res/android"
+-    android:shape="rectangle">
+-    <solid android:color="#060810"/>
+-</shape>
+\ No newline at end of file
+Index: app/src/main/res/values/colors.xml
+===================================================================
+diff --git a/app/src/main/res/values/colors.xml b/app/src/main/res/values/colors.xml
+deleted file mode 100644
+--- a/app/src/main/res/values/colors.xml
++++ /dev/null
+@@ -1,7 +0,0 @@
+-<?xml version="1.0" encoding="utf-8"?>
+-<resources>
+-    <color name="colorPrimary">#008577</color>
+-    <color name="colorPrimaryDark">#00574B</color>
+-    <color name="colorAccent">#D81B60</color>
+-</resources>
+-
+Index: app/src/main/res/values/styles.xml
+===================================================================
+diff --git a/app/src/main/res/values/styles.xml b/app/src/main/res/values/styles.xml
+deleted file mode 100644
+--- a/app/src/main/res/values/styles.xml
++++ /dev/null
+@@ -1,12 +0,0 @@
+-<resources>
+-
+-    <!-- Base application theme. -->
+-    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+-        <!-- Customize your theme here. -->
+-        <item name="colorPrimary">@color/colorPrimary</item>
+-        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+-        <item name="colorAccent">@color/colorAccent</item>
+-    </style>
+-
+-</resources>
+-
+Index: app/src/main/res/values/themes.xml
+===================================================================
+diff --git a/app/src/main/res/values/themes.xml b/app/src/main/res/values/themes.xml
+deleted file mode 100644
+--- a/app/src/main/res/values/themes.xml
++++ /dev/null
+@@ -1,10 +0,0 @@
+-<?xml version="1.0" encoding="utf-8"?>
+-<!-- PATH: app/src/main/res/values/themes.xml -->
+-<resources>
+-    <style name="Theme.GameBooster" parent="Theme.AppCompat.NoActionBar">
+-        <item name="android:windowBackground">@android:color/black</item>
+-        <item name="android:statusBarColor">#060810</item>
+-        <item name="android:navigationBarColor">#060810</item>
+-        <item name="android:windowLightStatusBar">false</item>
+-    </style>
+-</resources>
+Index: app/src/main/res/values/strings.xml
+===================================================================
+diff --git a/app/src/main/res/values/strings.xml b/app/src/main/res/values/strings.xml
+deleted file mode 100644
+--- a/app/src/main/res/values/strings.xml
++++ /dev/null
+@@ -1,4 +0,0 @@
+-<resources>
+-    <string name="app_name">GameBooster</string>
+-</resources>
+-
+Index: app/src/main/java/com/gamebooster/ui/MainActivity.kt
+===================================================================
+diff --git a/app/src/main/java/com/gamebooster/ui/MainActivity.kt b/app/src/main/java/com/gamebooster/ui/MainActivity.kt
+deleted file mode 100644
+--- a/app/src/main/java/com/gamebooster/ui/MainActivity.kt
++++ /dev/null
+@@ -1,328 +0,0 @@
+-// PATH: app/src/main/java/com/gamebooster/ui/MainActivity.kt
+-package com.gamebooster.ui
+-
+-import android.app.AppOpsManager
+-import android.content.Context
+-import android.content.Intent
+-import android.content.SharedPreferences
+-import android.content.pm.ApplicationInfo
+-import android.content.pm.PackageManager
+-import android.net.Uri
+-import android.os.Bundle
+-import android.os.Process
+-import android.provider.Settings
+-import android.webkit.*
+-import android.widget.Toast
+-import androidx.appcompat.app.AppCompatActivity
+-import com.gamebooster.booster.BoosterEngine
+-import com.gamebooster.booster.PerformanceMode
+-import com.gamebooster.service.BoosterForegroundService
+-import com.gamebooster.shizuku.ShizukuManager
+-import org.json.JSONArray
+-import org.json.JSONObject
+-import java.text.SimpleDateFormat
+-import java.util.*
+-
+-class MainActivity : AppCompatActivity() {
+-
+-    private lateinit var webView: WebView
+-    private lateinit var boosterEngine: BoosterEngine
+-    private lateinit var prefs: SharedPreferences
+-
+-    private var sessionStartTime: Long = 0L
+-    private var sessionGameName:  String = ""
+-    private var sessionGamePkg:   String = ""
+-
+-    companion object {
+-        const val PREFS_NAME     = "GameBoosterPrefs"
+-        const val KEY_KILL_LIST  = "kill_list"
+-        const val KEY_GAMES      = "games_list"
+-        const val KEY_AGGRO      = "aggro"
+-        const val KEY_AUTO_BOOST = "auto_boost"
+-        const val KEY_SESSIONS   = "sessions_list"
+-    }
+-
+-    override fun onCreate(savedInstanceState: Bundle?) {
+-        super.onCreate(savedInstanceState)
+-        prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+-
+-        webView = WebView(this)
+-        setContentView(webView)
+-        webView.settings.apply {
+-            javaScriptEnabled = true
+-            domStorageEnabled = true
+-            allowFileAccess   = true
+-        }
+-
+-        webView.webViewClient = object : WebViewClient() {
+-            override fun onPageFinished(view: WebView?, url: String?) {
+-                super.onPageFinished(view, url)
+-                boosterEngine.start()
+-                // JS tryLoad() handles data loading — no string escaping issues
+-            }
+-        }
+-
+-        webView.addJavascriptInterface(GameBoosterBridge(), "GameBooster")
+-
+-        boosterEngine = BoosterEngine(this)
+-        boosterEngine.userKillList = getSavedKillList()
+-            .map { it.getString("pkg") ?: "" }.filter { it.isNotEmpty() }
+-
+-        // ── Callbacks ──
+-        boosterEngine.onCpuUpdate = { v ->
+-            runOnUiThread { webView.evaluateJavascript("if(typeof updateCpu==='function')updateCpu(${v.toInt()})", null) }
+-        }
+-        boosterEngine.onRamUpdate = { v ->
+-            runOnUiThread { webView.evaluateJavascript("if(typeof updateRam==='function')updateRam(${v.availableMb},${v.totalMb})", null) }
+-        }
+-        boosterEngine.onThermalUpdate = { v ->
+-            runOnUiThread { webView.evaluateJavascript("if(typeof updateBatTemp==='function')updateBatTemp(${v.batteryTempC.toInt()},'${v.level}')", null) }
+-        }
+-        boosterEngine.onFpsUpdate = { v ->
+-            runOnUiThread { webView.evaluateJavascript("if(typeof updateFps==='function')updateFps(${v.toInt()})", null) }
+-        }
+-        boosterEngine.onBoostActivated = { pkg ->
+-            sessionStartTime = System.currentTimeMillis()
+-            sessionGamePkg   = pkg
+-            sessionGameName  = getAppName(pkg)
+-            val name = sessionGameName.replace("'", "\\'")
+-            runOnUiThread { webView.evaluateJavascript("if(typeof onBoostActivated==='function')onBoostActivated('$name','$pkg')", null) }
+-        }
+-        boosterEngine.onBoostDeactivated = {
+-            recordSessionEnd()
+-            runOnUiThread {
+-                webView.evaluateJavascript("if(typeof onBoostDeactivated==='function')onBoostDeactivated()", null)
+-                webView.evaluateJavascript("if(typeof loadSessions==='function')loadSessions()", null)
+-                webView.evaluateJavascript("if(typeof loadGames==='function')loadGames()", null)
+-            }
+-        }
+-        boosterEngine.onRamFreed = { mb ->
+-            runOnUiThread { webView.evaluateJavascript("if(typeof onRamFreed==='function')onRamFreed($mb)", null) }
+-        }
+-
+-        webView.loadUrl("file:///android_asset/ui/dashboard.html")
+-        ShizukuManager.init()
+-        startForegroundService(Intent(this, BoosterForegroundService::class.java))
+-        checkPermissions()
+-    }
+-
+-    // ════════════════════════════════════════════════
+-    // SESSION TRACKING
+-    // ════════════════════════════════════════════════
+-
+-    private fun recordSessionEnd() {
+-        if (sessionStartTime == 0L || sessionGameName.isEmpty()) return
+-        val now = System.currentTimeMillis()
+-        val sec = ((now - sessionStartTime) / 1000).toInt()
+-        val dur = if (sec >= 60) "${sec/60}m ${sec%60}s" else "${sec}s"
+-        val df  = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+-        val tf  = SimpleDateFormat("hh:mm:ss a",  Locale.getDefault())
+-        val s   = Calendar.getInstance().apply { timeInMillis = sessionStartTime }
+-        val e   = Calendar.getInstance().apply { timeInMillis = now }
+-        val obj = JSONObject().apply {
+-            put("gameName",  sessionGameName)
+-            put("gamePkg",   sessionGamePkg)
+-            put("date",      df.format(s.time))
+-            put("startTime", tf.format(s.time))
+-            put("endTime",   tf.format(e.time))
+-            put("duration",  dur)
+-        }
+-        val arr = try { JSONArray(prefs.getString(KEY_SESSIONS, "[]") ?: "[]") } catch (ex: Exception) { JSONArray() }
+-        arr.put(obj)
+-        prefs.edit().putString(KEY_SESSIONS, arr.toString()).apply()
+-        try {
+-            val games = JSONArray(prefs.getString(KEY_GAMES, "[]") ?: "[]")
+-            for (i in 0 until games.length()) {
+-                val g = games.getJSONObject(i)
+-                if (g.optString("pkg") == sessionGamePkg) {
+-                    g.put("sessions", g.optInt("sessions", 0) + 1); break
+-                }
+-            }
+-            prefs.edit().putString(KEY_GAMES, games.toString()).apply()
+-        } catch (ex: Exception) { }
+-        sessionStartTime = 0L; sessionGameName = ""; sessionGamePkg = ""
+-    }
+-
+-    // ════════════════════════════════════════════════
+-    // PERSISTENCE HELPERS
+-    // ════════════════════════════════════════════════
+-
+-    private fun getSavedKillList(): List<JSONObject> {
+-        return try {
+-            val a = JSONArray(prefs.getString(KEY_KILL_LIST, "[]") ?: "[]")
+-            (0 until a.length()).map { a.getJSONObject(it) }
+-        } catch (e: Exception) { emptyList() }
+-    }
+-
+-    private fun saveKillList(list: String) {
+-        prefs.edit().putString(KEY_KILL_LIST, list).apply()
+-        try {
+-            boosterEngine.userKillList = JSONArray(list).let { a ->
+-                (0 until a.length()).map { a.getJSONObject(it).getString("pkg") }.filter { it.isNotEmpty() }
+-            }
+-        } catch (e: Exception) { }
+-    }
+-
+-    private fun getAppName(pkg: String) = try {
+-        packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
+-    } catch (e: Exception) { pkg.substringAfterLast('.') }
+-
+-    private fun getKillableApps(): JSONArray {
+-        val pm  = packageManager
+-        val arr = JSONArray()
+-        val never = setOf("android","com.android.systemui","com.android.phone",
+-            "com.android.settings","com.google.android.gms","com.google.android.gsf",
+-            "com.android.inputmethod.latin","com.samsung.android.inputmethod",
+-            "com.google.android.inputmethod.latin","moe.shizuku.privileged.api", packageName)
+-        try {
+-            pm.getInstalledApplications(PackageManager.GET_META_DATA)
+-                .filter { (it.flags and ApplicationInfo.FLAG_SYSTEM) == 0
+-                       && it.packageName !in never
+-                       && pm.getLaunchIntentForPackage(it.packageName) != null }
+-                .sortedBy { pm.getApplicationLabel(it).toString().lowercase() }
+-                .forEach { app ->
+-                    try { arr.put(JSONObject().apply {
+-                        put("name", pm.getApplicationLabel(app).toString())
+-                        put("pkg",  app.packageName)
+-                    }) } catch (e: Exception) { }
+-                }
+-        } catch (e: Exception) { }
+-        return arr
+-    }
+-
+-    private fun getAllUserApps()     = getKillableApps()
+-    private fun getInstalledGames() = getKillableApps()
+-
+-    private fun checkPermissions() {
+-        val ao = getSystemService(APP_OPS_SERVICE) as AppOpsManager
+-        if (ao.checkOpNoThrow("android:get_usage_stats", Process.myUid(), packageName) != AppOpsManager.MODE_ALLOWED) {
+-            Toast.makeText(this, "Please grant Usage Access", Toast.LENGTH_LONG).show()
+-            startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+-        }
+-        if (!Settings.canDrawOverlays(this)) {
+-            Toast.makeText(this, "Please grant Display over other apps", Toast.LENGTH_LONG).show()
+-            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+-        }
+-    }
+-
+-    // ════════════════════════════════════════════════
+-    // JAVASCRIPT BRIDGE
+-    // ════════════════════════════════════════════════
+-    inner class GameBoosterBridge {
+-
+-        @JavascriptInterface fun boostNow() {
+-            runOnUiThread { if (ShizukuManager.isReady()) boosterEngine.manualBoost()
+-                else Toast.makeText(this@MainActivity, "⚠️ Shizuku not ready!", Toast.LENGTH_SHORT).show() }
+-        }
+-        @JavascriptInterface fun killAllApps() {
+-            runOnUiThread { if (ShizukuManager.isReady()) boosterEngine.manualKillAll()
+-                else Toast.makeText(this@MainActivity, "⚠️ Shizuku not ready!", Toast.LENGTH_SHORT).show() }
+-        }
+-        @JavascriptInterface fun killApp(pkg: String) {
+-            if (ShizukuManager.isReady()) com.gamebooster.shizuku.ShizukuCommandRunner.forceStop(pkg)
+-        }
+-        @JavascriptInterface fun launchApp(pkg: String) {
+-            runOnUiThread {
+-                try {
+-                    val intent = packageManager.getLaunchIntentForPackage(pkg)
+-                    if (intent != null) {
+-                        boosterEngine.activateBoostForGame(pkg)
+-                        android.os.Handler(mainLooper).postDelayed({
+-                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+-                            startActivity(intent)
+-                        }, 800L)
+-                    } else Toast.makeText(this@MainActivity, "Cannot launch app", Toast.LENGTH_SHORT).show()
+-                } catch (e: Exception) { Toast.makeText(this@MainActivity, "Launch failed", Toast.LENGTH_SHORT).show() }
+-            }
+-        }
+-        @JavascriptInterface fun saveKillList(json: String)  { this@MainActivity.saveKillList(json) }
+-        @JavascriptInterface fun saveGames(json: String)     { prefs.edit().putString(KEY_GAMES, json).apply() }
+-        @JavascriptInterface fun saveSetting(key: String, value: String) {
+-            when (key) {
+-                "aggro"     -> prefs.edit().putInt(KEY_AGGRO, value.toIntOrNull() ?: 2).apply()
+-                "autoBoost" -> prefs.edit().putBoolean(KEY_AUTO_BOOST, value == "true").apply()
+-            }
+-        }
+-        @JavascriptInterface fun saveSessionsJson(json: String) { prefs.edit().putString(KEY_SESSIONS, json).apply() }
+-        @JavascriptInterface fun resetGameSessions(pkg: String) {
+-            try {
+-                val a = JSONArray(prefs.getString(KEY_GAMES, "[]") ?: "[]")
+-                for (i in 0 until a.length()) { val g = a.getJSONObject(i)
+-                    if (g.optString("pkg") == pkg) { g.put("sessions", 0); break } }
+-                prefs.edit().putString(KEY_GAMES, a.toString()).apply()
+-            } catch (e: Exception) { }
+-        }
+-
+-        // ── Data getters — JS pulls directly (no string escaping issues) ──
+-        @JavascriptInterface fun getGames():    String = prefs.getString(KEY_GAMES,    "[]") ?: "[]"
+-        @JavascriptInterface fun getKillList(): String = prefs.getString(KEY_KILL_LIST,"[]") ?: "[]"
+-        @JavascriptInterface fun getSessions(): String = prefs.getString(KEY_SESSIONS, "[]") ?: "[]"
+-        @JavascriptInterface fun getSetting(key: String): String = when (key) {
+-            "aggro"     -> prefs.getInt(KEY_AGGRO, 2).toString()
+-            "autoBoost" -> prefs.getBoolean(KEY_AUTO_BOOST, true).toString()
+-            else        -> ""
+-        }
+-
+-        @JavascriptInterface fun isShizukuReady(): Boolean = ShizukuManager.isReady()
+-        @JavascriptInterface fun requestShizuku()  { runOnUiThread { ShizukuManager.requestPermission() } }
+-        @JavascriptInterface fun setAutoBoost(e: Boolean) { prefs.edit().putBoolean(KEY_AUTO_BOOST, e).apply() }
+-        @JavascriptInterface fun setAggro(l: Int)         { prefs.edit().putInt(KEY_AGGRO, l).apply() }
+-        @JavascriptInterface fun addGame(pkg: String, profile: String) { }
+-        @JavascriptInterface fun setGameProfile(pkg: String, profile: String) { }
+-        @JavascriptInterface fun getInstalledGames(): String = this@MainActivity.getInstalledGames().toString()
+-        @JavascriptInterface fun getKillableApps():   String = this@MainActivity.getKillableApps().toString()
+-        @JavascriptInterface fun getAllUserApps():     String = this@MainActivity.getAllUserApps().toString()
+-
+-        @JavascriptInterface fun getAppIcon(pkg: String): String {
+-            return try {
+-                val d = packageManager.getApplicationIcon(pkg)
+-                val bmp = if (d is android.graphics.drawable.BitmapDrawable) d.bitmap
+-                else android.graphics.Bitmap.createBitmap(
+-                    d.intrinsicWidth.takeIf { it > 0 } ?: 48,
+-                    d.intrinsicHeight.takeIf { it > 0 } ?: 48,
+-                    android.graphics.Bitmap.Config.ARGB_8888
+-                ).also { b -> val c = android.graphics.Canvas(b); d.setBounds(0,0,c.width,c.height); d.draw(c) }
+-                val out = java.io.ByteArrayOutputStream()
+-                android.graphics.Bitmap.createScaledBitmap(bmp,96,96,true)
+-                    .compress(android.graphics.Bitmap.CompressFormat.PNG,90,out)
+-                android.util.Base64.encodeToString(out.toByteArray(), android.util.Base64.NO_WRAP)
+-            } catch (e: Exception) { "" }
+-        }
+-
+-        @JavascriptInterface fun getPerformanceMode(): String = boosterEngine.performanceMode.name
+-        @JavascriptInterface fun setPerformanceMode(mode: String) {
+-            runOnUiThread {
+-                val pm = PerformanceMode.fromString(mode)
+-                boosterEngine.setPerformanceMode(pm)
+-                Toast.makeText(this@MainActivity, "Mode: ${pm.displayName}", Toast.LENGTH_SHORT).show()
+-            }
+-        }
+-        @JavascriptInterface fun requestPerformanceMode() {
+-            runOnUiThread {
+-                webView.evaluateJavascript(
+-                    "if(typeof setPerformanceMode==='function')setPerformanceMode('${boosterEngine.performanceMode.name}')", null)
+-            }
+-        }
+-    }
+-
+-    override fun onResume() {
+-        super.onResume()
+-        if (sessionStartTime > 0L) {
+-            recordSessionEnd()
+-            webView.evaluateJavascript("if(typeof onBoostDeactivated==='function')onBoostDeactivated()", null)
+-            webView.evaluateJavascript("if(typeof loadSessions==='function')loadSessions()", null)
+-            webView.evaluateJavascript("if(typeof loadGames==='function')loadGames()", null)
+-        }
+-    }
+-
+-    override fun onDestroy() {
+-        super.onDestroy()
+-        if (sessionStartTime > 0L) recordSessionEnd()
+-        boosterEngine.stop()
+-        ShizukuManager.destroy()
+-    }
+-
+-    override fun onBackPressed() {
+-        if (webView.canGoBack()) webView.goBack() else super.onBackPressed()
+-    }
+-}
+Index: app/src/main/java/com/gamebooster/booster/BoosterConfig.kt
+===================================================================
+diff --git a/app/src/main/java/com/gamebooster/booster/BoosterConfig.kt b/app/src/main/java/com/gamebooster/booster/BoosterConfig.kt
+deleted file mode 100644
+--- a/app/src/main/java/com/gamebooster/booster/BoosterConfig.kt
++++ /dev/null
+@@ -1,33 +0,0 @@
+-// PATH: app/src/main/java/com/gamebooster/booster/BoosterConfig.kt
+-package com.gamebooster.booster
+-
+-/**
+- * All configurable thresholds in one place.
+- * Change these without touching any logic.
+- */
+-object BoosterConfig {
+-
+-    // ── Frame drop detection ──
+-    // How many consecutive slow seconds before triggering a kill
+-    const val FRAME_LAG_TRIGGER_SECONDS = 3
+-    // Frame time above this (ms) is considered slow (16ms = 60fps)
+-    const val FRAME_LAG_THRESHOLD_MS    = 20L
+-
+-    // ── Memory pressure ──
+-    // Available RAM below this → trigger Level 2 kill (MB)
+-    const val RAM_PRESSURE_THRESHOLD_MB = 300L
+-    // Available RAM below this → trigger Level 3 emergency kill (MB)
+-    const val RAM_CRITICAL_THRESHOLD_MB = 150L
+-
+-    // ── Cooldown — prevents over-aggressive behaviour ──
+-    // Minimum ms between any two kill events
+-    const val KILL_COOLDOWN_MS          = 45_000L   // 45 seconds
+-
+-    // ── Kill levels ──
+-    // Level 1: only user-added kill list (lightest)
+-    // Level 2: user list + social/webview apps
+-    // Level 3: everything in whitelist (emergency)
+-    const val KILL_LEVEL_LIGHT     = 1
+-    const val KILL_LEVEL_BALANCED  = 2
+-    const val KILL_LEVEL_EMERGENCY = 3
+-}
+Index: app/src/main/java/com/gamebooster/booster/BoosterEngine.kt
+===================================================================
+diff --git a/app/src/main/java/com/gamebooster/booster/BoosterEngine.kt b/app/src/main/java/com/gamebooster/booster/BoosterEngine.kt
+deleted file mode 100644
+--- a/app/src/main/java/com/gamebooster/booster/BoosterEngine.kt
++++ /dev/null
+@@ -1,296 +0,0 @@
+-// PATH: app/src/main/java/com/gamebooster/booster/BoosterEngine.kt
+-package com.gamebooster.booster
+-
+-import android.content.Context
+-import android.content.pm.PackageManager
+-import android.util.Log
+-import com.gamebooster.monitor.*
+-import com.gamebooster.shizuku.ShizukuCommandRunner
+-import com.gamebooster.shizuku.ShizukuManager
+-import kotlinx.coroutines.*
+-import kotlinx.coroutines.flow.collectLatest
+-
+-/**
+- * BoosterEngine — refactored into 3 layers:
+- *
+- * 1. EVENT DETECTION LAYER
+- *    - FrameDropDetector (Choreographer)  → primary trigger
+- *    - RamMonitor pressure callbacks      → secondary trigger
+- *
+- * 2. DECISION LAYER
+- *    - Cooldown system prevents over-kill
+- *    - Priority-based kill level selection
+- *    - Shizuku availability check before every action
+- *
+- * 3. ACTION LAYER
+- *    - performKill(level) — tiered kill logic
+- *    - gameOptimizer.optimizeForGaming()
+- *
+- * Removed:
+- *   - GPU usage polling as trigger
+- *   - Battery thermal estimation
+- *   - Fixed 60s re-kill loop
+- *   - CPU governor control
+- */
+-class BoosterEngine(private val context: Context) {
+-
+-    private val TAG = "BoosterEngine"
+-
+-    // ── Monitors (display only, not used as triggers) ──
+-    val cpuMonitor      = CpuMonitor()
+-    val ramMonitor      = RamMonitor(context)
+-    val thermalMonitor  = ThermalMonitor(context)
+-    val fpsMonitor      = FpsMonitor()
+-
+-    // ── Event Detection Layer ──
+-    val frameDropDetector = FrameDropDetector { onFrameDropDetected() }
+-
+-    // ── Supporting components ──
+-    val foregroundDetector = ForegroundDetector(context)
+-    val gameOptimizer      = GameOptimizer(context)
+-
+-    private var engineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+-
+-    // ── State ──
+-    var isBoostActive      = false; private set
+-    var activeGamePackage  = "";    private set
+-    var performanceMode    = PerformanceMode.BALANCED; private set
+-
+-    // ── Cooldown — prevents oscillation ──
+-    private var lastKillTimeMs = 0L
+-
+-    // ── Installed packages cache for smart kill ──
+-    private val installedPackages: Set<String> by lazy {
+-        try {
+-            context.packageManager
+-                .getInstalledApplications(PackageManager.GET_META_DATA)
+-                .map { it.packageName }.toSet()
+-        } catch (e: Exception) { emptySet() }
+-    }
+-
+-    private val prefs = context.getSharedPreferences("GameBoosterPrefs", Context.MODE_PRIVATE)
+-
+-    // ── Callbacks → UI ──
+-    var onBoostActivated:   ((String) -> Unit)?      = null
+-    var onBoostDeactivated: (() -> Unit)?             = null
+-    var onRamFreed:         ((Int) -> Unit)?          = null
+-    var onCpuUpdate:        ((Float) -> Unit)?        = null
+-    var onRamUpdate:        ((RamInfo) -> Unit)?      = null
+-    var onThermalUpdate:    ((ThermalInfo) -> Unit)?  = null
+-    var onFpsUpdate:        ((Float) -> Unit)?        = null
+-
+-    // Keep kill list in sync with what user saved
+-    var userKillList: List<String> = emptyList()
+-
+-    // ════════════════════════════════════════════════
+-    // START
+-    // ════════════════════════════════════════════════
+-    fun start() {
+-        Log.d(TAG, "🚀 BoosterEngine starting")
+-        loadPerformanceMode()
+-        ShizukuCommandRunner.connect()
+-
+-        // CPU → UI only
+-        cpuMonitor.start(engineScope)
+-        engineScope.launch {
+-            cpuMonitor.cpuUsage.collectLatest { v ->
+-                withContext(Dispatchers.Main) { onCpuUpdate?.invoke(v) }
+-            }
+-        }
+-
+-        // RAM → UI + event callbacks
+-        ramMonitor.onMemoryPressure = {
+-            if (isBoostActive) triggerKill(BoosterConfig.KILL_LEVEL_BALANCED, "RAM pressure")
+-        }
+-        ramMonitor.onMemoryCritical = {
+-            if (isBoostActive) triggerKill(BoosterConfig.KILL_LEVEL_EMERGENCY, "RAM critical")
+-        }
+-        ramMonitor.start(engineScope)
+-        engineScope.launch {
+-            ramMonitor.ramInfo.collectLatest { v ->
+-                withContext(Dispatchers.Main) { onRamUpdate?.invoke(v) }
+-            }
+-        }
+-
+-        // Thermal → UI only (display, no auto-action)
+-        thermalMonitor.start(engineScope)
+-        engineScope.launch {
+-            thermalMonitor.thermalInfo.collectLatest { v ->
+-                withContext(Dispatchers.Main) { onThermalUpdate?.invoke(v) }
+-            }
+-        }
+-
+-        // FrameDropDetector started only when game is active (in activateBoost)
+-        Log.d(TAG, "✅ BoosterEngine started — mode: ${performanceMode.displayName}")
+-    }
+-
+-    // ════════════════════════════════════════════════
+-    // STOP
+-    // ════════════════════════════════════════════════
+-    fun stop() {
+-        frameDropDetector.stop()
+-        fpsMonitor.stop()
+-        ShizukuCommandRunner.disconnect()
+-        engineScope.cancel()
+-        cpuMonitor.stop()
+-        ramMonitor.stop()
+-        thermalMonitor.stop()
+-        engineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+-        Log.d(TAG, "🛑 BoosterEngine stopped")
+-    }
+-
+-    // ════════════════════════════════════════════════
+-    // EVENT DETECTION → DECISION LAYER
+-    // ════════════════════════════════════════════════
+-
+-    /** Called by FrameDropDetector when sustained lag detected */
+-    private fun onFrameDropDetected() {
+-        if (!isBoostActive) return
+-        triggerKill(performanceMode.killLevel, "frame drop")
+-    }
+-
+-    /**
+-     * Core decision gate.
+-     * Checks cooldown, then executes kill at given level.
+-     */
+-    private fun triggerKill(level: Int, reason: String) {
+-        val now = System.currentTimeMillis()
+-        if (now - lastKillTimeMs < BoosterConfig.KILL_COOLDOWN_MS) {
+-            Log.d(TAG, "⏳ Kill cooldown active, skipping ($reason)")
+-            return
+-        }
+-        if (!ShizukuManager.isReady()) {
+-            Log.w(TAG, "⚠️ Shizuku not ready — skipping kill ($reason)")
+-            return
+-        }
+-        lastKillTimeMs = now
+-        Log.d(TAG, "🎯 Kill triggered: $reason [Level $level]")
+-        engineScope.launch(Dispatchers.IO) {
+-            val freed = performKill(level, activeGamePackage)
+-            if (freed > 0) {
+-                frameDropDetector.resetCounter()    // Reset after successful kill
+-                withContext(Dispatchers.Main) { onRamFreed?.invoke(freed) }
+-            }
+-        }
+-    }
+-
+-    // ════════════════════════════════════════════════
+-    // ACTION LAYER — TIERED KILL LOGIC
+-    // ════════════════════════════════════════════════
+-
+-    /**
+-     * Level 1 — Light: only user's custom kill list
+-     * Level 2 — Balanced: user list + social + webview
+-     * Level 3 — Emergency: everything in whitelist
+-     */
+-    private fun performKill(level: Int, foregroundPkg: String): Int {
+-        val neverKill = WhitelistManager.NEVER_KILL + setOf(foregroundPkg, context.packageName)
+-
+-        val toKill: Set<String> = when (level) {
+-            BoosterConfig.KILL_LEVEL_LIGHT ->
+-                userKillList.filter { it.isNotEmpty() }.toSet() - neverKill
+-
+-            BoosterConfig.KILL_LEVEL_BALANCED ->
+-                (userKillList.filter { it.isNotEmpty() }.toSet() +
+-                 WhitelistManager.getInstalledKillTargets(installedPackages)) - neverKill
+-
+-            else -> // EMERGENCY — everything
+-                (userKillList.filter { it.isNotEmpty() }.toSet() +
+-                 WhitelistManager.getSmartKillTargets()) - neverKill
+-        }.filter { it.isNotEmpty() }.toSet()
+-
+-        if (toKill.isEmpty()) { Log.d(TAG, "ℹ️ Nothing to kill [L$level]"); return 0 }
+-
+-        var killed = 0
+-        for (pkg in toKill) {
+-            if (ShizukuCommandRunner.forceStop(pkg)) {
+-                killed++
+-                Log.d(TAG, "💀 Killed [$level]: $pkg")
+-            }
+-        }
+-        val mb = killed * 55
+-        Log.d(TAG, "✅ Kill L$level: $killed apps, ~${mb}MB freed")
+-        return mb
+-    }
+-
+-    // ════════════════════════════════════════════════
+-    // BOOST ACTIVATE / DEACTIVATE
+-    // ════════════════════════════════════════════════
+-
+-    fun activateBoostForGame(gamePackage: String) = activateBoost(gamePackage)
+-
+-    private fun activateBoost(gamePackage: String) {
+-        if (isBoostActive && activeGamePackage == gamePackage) return
+-        isBoostActive     = true
+-        activeGamePackage = gamePackage
+-        lastKillTimeMs    = 0L  // Reset cooldown on new game launch
+-
+-        withMain { onBoostActivated?.invoke(gamePackage) }
+-
+-        engineScope.launch(Dispatchers.IO) {
+-            // Apply system-level optimizations
+-            gameOptimizer.optimizeForGaming()
+-            // Initial kill at selected level
+-            val freed = performKill(performanceMode.killLevel, gamePackage)
+-            withContext(Dispatchers.Main) { if (freed > 0) onRamFreed?.invoke(freed) }
+-            // Start FPS display monitor
+-            withContext(Dispatchers.Main) {
+-                fpsMonitor.stop()
+-                fpsMonitor.start(engineScope, gamePackage)
+-                engineScope.launch {
+-                    fpsMonitor.fps.collectLatest { v ->
+-                        withContext(Dispatchers.Main) { onFpsUpdate?.invoke(v) }
+-                    }
+-                }
+-            }
+-        }
+-        // Start frame drop detection
+-        frameDropDetector.start()
+-        Log.d(TAG, "⚡ Boost activated for $gamePackage [${performanceMode.displayName}]")
+-    }
+-
+-    fun deactivateBoost() {
+-        if (!isBoostActive) return
+-        isBoostActive     = false
+-        activeGamePackage = ""
+-        frameDropDetector.stop()
+-        fpsMonitor.stop()
+-        engineScope.launch(Dispatchers.IO) { gameOptimizer.restoreSettings() }
+-        withMain { onBoostDeactivated?.invoke() }
+-        Log.d(TAG, "✅ Boost deactivated")
+-    }
+-
+-    // ════════════════════════════════════════════════
+-    // MANUAL ACTIONS (from UI buttons)
+-    // ════════════════════════════════════════════════
+-
+-    fun manualBoost() {
+-        lastKillTimeMs = 0L   // Manual boost bypasses cooldown
+-        engineScope.launch(Dispatchers.IO) {
+-            val freed = performKill(performanceMode.killLevel, activeGamePackage)
+-            withContext(Dispatchers.Main) { onRamFreed?.invoke(freed) }
+-        }
+-    }
+-
+-    fun manualKillAll() = manualBoost()
+-
+-    // ════════════════════════════════════════════════
+-    // PERFORMANCE MODE
+-    // ════════════════════════════════════════════════
+-
+-    fun setPerformanceMode(mode: PerformanceMode) {
+-        performanceMode = mode
+-        prefs.edit().putString("performance_mode", mode.name).apply()
+-        Log.d(TAG, "⚙️ Mode: ${mode.displayName}")
+-    }
+-
+-    private fun loadPerformanceMode() {
+-        performanceMode = PerformanceMode.fromString(
+-            prefs.getString("performance_mode", "BALANCED")
+-        )
+-    }
+-
+-    private fun withMain(block: () -> Unit) {
+-        engineScope.launch(Dispatchers.Main) { block() }
+-    }
+-}
+Index: app/src/main/java/com/gamebooster/booster/PerformanceMode.kt
+===================================================================
+diff --git a/app/src/main/java/com/gamebooster/booster/PerformanceMode.kt b/app/src/main/java/com/gamebooster/booster/PerformanceMode.kt
+deleted file mode 100644
+--- a/app/src/main/java/com/gamebooster/booster/PerformanceMode.kt
++++ /dev/null
+@@ -1,47 +0,0 @@
+-// PATH: app/src/main/java/com/gamebooster/booster/PerformanceMode.kt
+-package com.gamebooster.booster
+-
+-/**
+- * Behaviour-based kill aggressiveness modes.
+- * NO hardware-level control — names reflect what actually happens.
+- *
+- * All modes apply:
+- *   - Background app killing (level varies)
+- *   - Bluetooth disable
+- *   - WiFi scan disable
+- *   - Auto-sync disable
+- *   - DND enable
+- *   - DNS → Cloudflare 1.1.1.1
+- *   - Storage read-ahead 2048KB
+- *   - Swappiness lowered to 10
+- */
+-enum class PerformanceMode(
+-    val displayName: String,
+-    val description: String,
+-    val killLevel: Int              // Maps to BoosterConfig.KILL_LEVEL_*
+-) {
+-    LIGHT(
+-        displayName = "Light",
+-        description = "Only your custom kill list — minimal interference",
+-        killLevel   = BoosterConfig.KILL_LEVEL_LIGHT
+-    ),
+-    BALANCED(
+-        displayName = "Balanced",
+-        description = "Custom list + social & browser apps — recommended",
+-        killLevel   = BoosterConfig.KILL_LEVEL_BALANCED
+-    ),
+-    AGGRESSIVE(
+-        displayName = "Aggressive Background Control",
+-        description = "Everything in kill list — max free RAM",
+-        killLevel   = BoosterConfig.KILL_LEVEL_EMERGENCY
+-    );
+-
+-    companion object {
+-        fun fromString(value: String?): PerformanceMode = when (value?.uppercase()) {
+-            "LIGHT"      -> LIGHT
+-            "BALANCED"   -> BALANCED
+-            "AGGRESSIVE" -> AGGRESSIVE
+-            else         -> BALANCED
+-        }
+-    }
+-}
+Index: app/src/main/java/com/gamebooster/monitor/FrameDropDetector.kt
+===================================================================
+diff --git a/app/src/main/java/com/gamebooster/monitor/FrameDropDetector.kt b/app/src/main/java/com/gamebooster/monitor/FrameDropDetector.kt
+deleted file mode 100644
+--- a/app/src/main/java/com/gamebooster/monitor/FrameDropDetector.kt
++++ /dev/null
+@@ -1,106 +0,0 @@
+-// PATH: app/src/main/java/com/gamebooster/monitor/FrameDropDetector.kt
+-package com.gamebooster.monitor
+-
+-import android.os.Handler
+-import android.os.Looper
+-import android.util.Log
+-import android.view.Choreographer
+-import com.gamebooster.booster.BoosterConfig
+-
+-/**
+- * FrameDropDetector — event-driven trigger using Choreographer.
+- *
+- * Choreographer fires on every VSYNC signal (each display frame).
+- * We measure the gap between consecutive frames.
+- * If avgFrameMs > FRAME_LAG_THRESHOLD_MS for N consecutive seconds,
+- * onFrameDrop() fires → triggers a kill event.
+- *
+- * This replaces the GPU polling trigger entirely.
+- * No sysfs reads needed. Works on all devices.
+- */
+-class FrameDropDetector(
+-    private val onFrameDrop: () -> Unit
+-) {
+-    private val TAG = "FrameDropDetector"
+-
+-    private val mainHandler = Handler(Looper.getMainLooper())
+-    private var isRunning   = false
+-
+-    // Per-second averaging
+-    private var lastFrameNanos  = 0L
+-    private var secondStartNanos = 0L
+-    private val frameSamples    = mutableListOf<Long>()
+-
+-    // Consecutive slow-second counter
+-    private var slowSeconds = 0
+-
+-    private val frameCallback = object : Choreographer.FrameCallback {
+-        override fun doFrame(frameTimeNanos: Long) {
+-            if (!isRunning) return
+-
+-            if (lastFrameNanos > 0L) {
+-                val deltaMs = (frameTimeNanos - lastFrameNanos) / 1_000_000L
+-
+-                // Filter out junk values (resume gaps, screen-off, etc.)
+-                if (deltaMs in 1L..500L) {
+-                    frameSamples.add(deltaMs)
+-
+-                    val elapsedMs = (frameTimeNanos - secondStartNanos) / 1_000_000L
+-                    if (elapsedMs >= 1000L) {
+-                        val avgMs = frameSamples.average().toLong()
+-                        frameSamples.clear()
+-                        secondStartNanos = frameTimeNanos
+-
+-                        if (avgMs > BoosterConfig.FRAME_LAG_THRESHOLD_MS) {
+-                            slowSeconds++
+-                            Log.d(TAG, "⚠️ Slow frame avg: ${avgMs}ms ($slowSeconds/${BoosterConfig.FRAME_LAG_TRIGGER_SECONDS})")
+-                            if (slowSeconds >= BoosterConfig.FRAME_LAG_TRIGGER_SECONDS) {
+-                                Log.w(TAG, "🔥 Frame drop sustained — triggering optimize")
+-                                slowSeconds = 0
+-                                // Post to main thread — caller decides what to do
+-                                mainHandler.post { onFrameDrop() }
+-                            }
+-                        } else {
+-                            // Smooth — reset counter
+-                            if (slowSeconds > 0) Log.d(TAG, "✅ Frames smooth again")
+-                            slowSeconds = 0
+-                        }
+-                    }
+-                }
+-            } else {
+-                secondStartNanos = frameTimeNanos
+-            }
+-
+-            lastFrameNanos = frameTimeNanos
+-            Choreographer.getInstance().postFrameCallback(this)
+-        }
+-    }
+-
+-    fun start() {
+-        if (isRunning) return
+-        isRunning        = true
+-        lastFrameNanos   = 0L
+-        slowSeconds      = 0
+-        secondStartNanos = 0L
+-        frameSamples.clear()
+-        Log.d(TAG, "▶ FrameDropDetector started")
+-        mainHandler.post {
+-            Choreographer.getInstance().postFrameCallback(frameCallback)
+-        }
+-    }
+-
+-    fun stop() {
+-        isRunning = false
+-        mainHandler.post {
+-            Choreographer.getInstance().removeFrameCallback(frameCallback)
+-        }
+-        frameSamples.clear()
+-        slowSeconds = 0
+-        Log.d(TAG, "⏹ FrameDropDetector stopped")
+-    }
+-
+-    fun resetCounter() {
+-        slowSeconds = 0
+-        frameSamples.clear()
+-    }
+-}
+Index: app/src/main/java/com/gamebooster/service/BoosterForegroundService.kt
+===================================================================
+diff --git a/app/src/main/java/com/gamebooster/service/BoosterForegroundService.kt b/app/src/main/java/com/gamebooster/service/BoosterForegroundService.kt
+deleted file mode 100644
+--- a/app/src/main/java/com/gamebooster/service/BoosterForegroundService.kt
++++ /dev/null
+@@ -1,114 +0,0 @@
+-// PATH: app/src/main/java/com/gamebooster/service/BoosterForegroundService.kt
+-package com.gamebooster.service
+-
+-import android.app.*
+-import android.content.Intent
+-import android.os.IBinder
+-import androidx.core.app.NotificationCompat
+-import androidx.lifecycle.LifecycleService
+-import androidx.lifecycle.lifecycleScope
+-import com.gamebooster.booster.BoosterEngine
+-import com.gamebooster.shizuku.ShizukuManager
+-import com.gamebooster.ui.MainActivity
+-
+-class BoosterForegroundService : LifecycleService() {
+-
+-    companion object {
+-        const val CHANNEL_ID    = "gamebooster_channel"
+-        const val NOTIFICATION_ID = 1
+-        const val ACTION_STOP   = "com.gamebooster.STOP"
+-    }
+-
+-    private lateinit var boosterEngine: BoosterEngine
+-    private lateinit var keepAlive: ShizukuKeepAlive
+-
+-    override fun onCreate() {
+-        super.onCreate()
+-        createNotificationChannel()
+-        startForeground(NOTIFICATION_ID, buildNotification("⚡ GameBooster running..."))
+-
+-        ShizukuManager.init()
+-
+-        boosterEngine = BoosterEngine(this)
+-        boosterEngine.onBoostActivated = { pkg ->
+-            updateNotification("🔥 Boosting: ${pkg.substringAfterLast('.')}")
+-        }
+-        boosterEngine.onBoostDeactivated = {
+-            updateNotification("⚡ GameBooster running...")
+-        }
+-        boosterEngine.onRamFreed = { mb ->
+-            updateNotification("💀 Freed ${mb}MB RAM")
+-        }
+-        boosterEngine.start()
+-
+-        keepAlive = ShizukuKeepAlive(
+-            onShizukuDied     = { updateNotification("⚠️ Shizuku stopped — reopen Shizuku app") },
+-            onShizukuRestored = { updateNotification("✅ Shizuku reconnected") }
+-        )
+-        keepAlive.start(lifecycleScope)
+-    }
+-
+-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+-        super.onStartCommand(intent, flags, startId)
+-        if (intent?.action == ACTION_STOP) {
+-            stopSelf()
+-        }
+-        return START_STICKY
+-    }
+-
+-    override fun onDestroy() {
+-        super.onDestroy()
+-        boosterEngine.stop()
+-        keepAlive.stop()
+-        ShizukuManager.destroy()
+-    }
+-
+-    override fun onBind(intent: Intent): IBinder? {
+-        super.onBind(intent)
+-        return null
+-    }
+-
+-    private fun createNotificationChannel() {
+-        val channel = NotificationChannel(
+-            CHANNEL_ID,
+-            "GameBooster",
+-            NotificationManager.IMPORTANCE_LOW
+-        ).apply {
+-            description = "GameBooster background service"
+-            setShowBadge(false)
+-        }
+-        val manager = getSystemService(NotificationManager::class.java)
+-        manager.createNotificationChannel(channel)
+-    }
+-
+-    private fun buildNotification(text: String): Notification {
+-        val openIntent = Intent(this, MainActivity::class.java)
+-        val pendingOpen = PendingIntent.getActivity(
+-            this, 0, openIntent,
+-            PendingIntent.FLAG_IMMUTABLE
+-        )
+-
+-        val stopIntent = Intent(this, BoosterForegroundService::class.java).apply {
+-            action = ACTION_STOP
+-        }
+-        val pendingStop = PendingIntent.getService(
+-            this, 1, stopIntent,
+-            PendingIntent.FLAG_IMMUTABLE
+-        )
+-
+-        return NotificationCompat.Builder(this, CHANNEL_ID)
+-            .setContentTitle("GameBooster")
+-            .setContentText(text)
+-            .setSmallIcon(android.R.drawable.ic_media_play)
+-            .setContentIntent(pendingOpen)
+-            .addAction(android.R.drawable.ic_delete, "Stop", pendingStop)
+-            .setOngoing(true)
+-            .setSilent(true)
+-            .build()
+-    }
+-
+-    private fun updateNotification(text: String) {
+-        val manager = getSystemService(NotificationManager::class.java)
+-        manager.notify(NOTIFICATION_ID, buildNotification(text))
+-    }
+-}
+Index: app/src/main/java/com/gamebooster/shizuku/AppKiller.kt
+===================================================================
+diff --git a/app/src/main/java/com/gamebooster/shizuku/AppKiller.kt b/app/src/main/java/com/gamebooster/shizuku/AppKiller.kt
+deleted file mode 100644
+--- a/app/src/main/java/com/gamebooster/shizuku/AppKiller.kt
++++ /dev/null
+@@ -1,35 +0,0 @@
+-// PATH: app/src/main/java/com/gamebooster/shizuku/AppKiller.kt
+-package com.gamebooster.shizuku
+-
+-import android.util.Log
+-import com.gamebooster.booster.WhitelistManager
+-import kotlinx.coroutines.Dispatchers
+-import kotlinx.coroutines.withContext
+-
+-object AppKiller {
+-
+-    private const val TAG = "AppKiller"
+-
+-    suspend fun killBackgroundApps(foregroundPackage: String): Int =
+-        withContext(Dispatchers.IO) {
+-            val targets = WhitelistManager.getKillTargets()
+-                .filter { it != foregroundPackage }
+-
+-            var killedCount = 0
+-            for (pkg in targets) {
+-                val success = ShizukuCommandRunner.forceStop(pkg)
+-                if (success) {
+-                    killedCount++
+-                    Log.d(TAG, "💀 Killed: $pkg")
+-                }
+-            }
+-
+-            val estimatedFreedMb = killedCount * 55
+-            Log.d(TAG, "✅ Killed $killedCount apps, ~${estimatedFreedMb}MB freed")
+-            estimatedFreedMb
+-        }
+-
+-    fun killApp(packageName: String) {
+-        ShizukuCommandRunner.forceStop(packageName)
+-    }
+-}
+Index: app/src/main/java/com/gamebooster/shizuku/ShizukuManager.kt
+===================================================================
+diff --git a/app/src/main/java/com/gamebooster/shizuku/ShizukuManager.kt b/app/src/main/java/com/gamebooster/shizuku/ShizukuManager.kt
+deleted file mode 100644
+--- a/app/src/main/java/com/gamebooster/shizuku/ShizukuManager.kt
++++ /dev/null
+@@ -1,63 +0,0 @@
+-// PATH: app/src/main/java/com/gamebooster/shizuku/ShizukuManager.kt
+-package com.gamebooster.shizuku
+-
+-import android.content.pm.PackageManager
+-import android.util.Log
+-import rikka.shizuku.Shizuku
+-
+-object ShizukuManager {
+-
+-    private const val TAG = "ShizukuManager"
+-    private const val REQUEST_CODE = 101
+-
+-    val isAvailable: Boolean
+-        get() = try { Shizuku.pingBinder() } catch (e: Exception) { false }
+-
+-    val isGranted: Boolean
+-        get() = try {
+-            Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+-        } catch (e: Exception) { false }
+-
+-    private val binderReceivedListener = Shizuku.OnBinderReceivedListener {
+-        Log.d(TAG, "✅ Shizuku binder received")
+-    }
+-
+-    private val binderDeadListener = Shizuku.OnBinderDeadListener {
+-        Log.w(TAG, "⚠️ Shizuku binder died!")
+-    }
+-
+-    private val permissionResultListener =
+-        Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
+-            if (requestCode == REQUEST_CODE) {
+-                if (grantResult == PackageManager.PERMISSION_GRANTED) {
+-                    Log.d(TAG, "✅ Shizuku permission granted")
+-                } else {
+-                    Log.e(TAG, "❌ Shizuku permission denied")
+-                }
+-            }
+-        }
+-
+-    fun init() {
+-        Shizuku.addBinderReceivedListenerSticky(binderReceivedListener)
+-        Shizuku.addBinderDeadListener(binderDeadListener)
+-        Shizuku.addRequestPermissionResultListener(permissionResultListener)
+-    }
+-
+-    fun destroy() {
+-        Shizuku.removeBinderReceivedListener(binderReceivedListener)
+-        Shizuku.removeBinderDeadListener(binderDeadListener)
+-        Shizuku.removeRequestPermissionResultListener(permissionResultListener)
+-    }
+-
+-    fun requestPermission() {
+-        if (!isAvailable) {
+-            Log.e(TAG, "❌ Shizuku not available — start Shizuku app first")
+-            return
+-        }
+-        if (!isGranted) {
+-            Shizuku.requestPermission(REQUEST_CODE)
+-        }
+-    }
+-
+-    fun isReady(): Boolean = isAvailable && isGranted
+-}
+Index: app/src/main/assets/ui/dashboard.html
+===================================================================
+diff --git a/app/src/main/assets/ui/dashboard.html b/app/src/main/assets/ui/dashboard.html
+deleted file mode 100644
+--- a/app/src/main/assets/ui/dashboard.html
++++ /dev/null
+@@ -1,996 +0,0 @@
+-<!DOCTYPE html>
+-<html lang="en">
+-<head>
+-<meta charset="UTF-8">
+-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+-<title>GameBooster</title>
+-<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+-<style>
+-  :root{--bg:#060810;--bg2:#0c1020;--panel:#0f1624;--border:#1e2d4a;--cyan:#00f5ff;--green:#00ff88;--orange:#ff6b00;--red:#ff2d55;--yellow:#ffcc00;--text:#c8d8f0;--text-dim:#4a6080;--glow-c:0 0 12px #00f5ff66,0 0 30px #00f5ff22;--glow-g:0 0 12px #00ff8866,0 0 30px #00ff8822;}
+-  *{margin:0;padding:0;box-sizing:border-box}
+-  body{background:var(--bg);color:var(--text);font-family:'Barlow Condensed',sans-serif;min-height:100vh;overflow-x:hidden}
+-  body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,245,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,245,255,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+-  .screen{display:none;position:relative;max-width:480px;margin:0 auto;min-height:100vh;z-index:1;padding-bottom:85px;animation:fadeIn .25s ease both}
+-  .screen.active{display:block}
+-  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+-  .status-bar{display:flex;justify-content:space-between;align-items:center;padding:12px 20px 0;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim)}
+-  .shizuku-badge{display:flex;align-items:center;gap:5px;background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.3);border-radius:4px;padding:2px 8px;color:var(--green);font-size:10px}
+-  .shizuku-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse-green 2s infinite}
+-  @keyframes pulse-green{0%,100%{opacity:1;box-shadow:0 0 4px var(--green)}50%{opacity:.4}}
+-  .header{padding:16px 20px 0}
+-  .header-top{display:flex;justify-content:space-between;align-items:flex-start}
+-  .app-title{font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;letter-spacing:.3em;color:var(--cyan);text-transform:uppercase;margin-bottom:2px}
+-  .app-subtitle{font-size:28px;font-weight:900;letter-spacing:.05em;line-height:1;text-transform:uppercase;color:#fff}
+-  .settings-btn{width:38px;height:38px;border:1px solid var(--border);border-radius:8px;background:var(--panel);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-dim)}
+-  .boost-card{margin:20px 20px 0;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:20px;position:relative;overflow:hidden}
+-  .boost-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);animation:scan-line 3s linear infinite}
+-  @keyframes scan-line{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+-  .boost-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+-  .boost-label{font-size:11px;letter-spacing:.2em;color:var(--text-dim);text-transform:uppercase}
+-  .boost-status{font-size:22px;font-weight:700;color:var(--cyan);font-family:'Rajdhani',sans-serif}
+-  .boost-toggle{width:52px;height:28px;background:var(--bg);border:1px solid var(--cyan);border-radius:14px;cursor:pointer;position:relative;transition:all .3s;box-shadow:var(--glow-c)}
+-  .boost-toggle::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--cyan);transition:all .3s;box-shadow:0 0 8px var(--cyan)}
+-  .boost-toggle.active::after{transform:translateX(24px)}
+-  .boost-toggle.active{background:rgba(0,245,255,.15)}
+-  .cpu-arc-wrap{display:flex;justify-content:center;align-items:center;flex-direction:column;gap:8px}
+-  .arc-container{position:relative;width:160px;height:90px;overflow:hidden}
+-  .arc-container svg{position:absolute;bottom:0;left:0}
+-  .arc-value{position:absolute;bottom:0;width:100%;text-align:center;font-family:'Share Tech Mono',monospace;font-size:32px;font-weight:700;color:var(--cyan);line-height:1}
+-  .arc-sub{font-size:11px;letter-spacing:.2em;color:var(--text-dim);text-transform:uppercase;text-align:center}
+-  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 20px 0}
+-  .stat-card.bat-full{grid-column:1/-1;}
+-  .stat-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;position:relative;overflow:hidden;transition:border-color .3s}
+-  .stat-card.warn{border-color:rgba(255,107,0,.5)}.stat-card.danger{border-color:rgba(255,45,85,.5)}.stat-card.ok{border-color:rgba(0,255,136,.3)}
+-  .stat-card::after{content:'';position:absolute;top:0;right:0;width:40px;height:40px;border-radius:0 0 0 40px;opacity:.15}
+-  .stat-card.ram::after{background:var(--green)}.stat-card.temp::after{background:var(--orange)}.stat-card.fps::after{background:var(--cyan)}.stat-card.bat::after{background:var(--yellow)}
+-  .stat-icon{font-size:18px;margin-bottom:8px}.stat-name{font-size:10px;letter-spacing:.2em;color:var(--text-dim);text-transform:uppercase}
+-  .stat-value{font-family:'Share Tech Mono',monospace;font-size:26px;font-weight:700;line-height:1.1;margin-top:2px}
+-  .stat-value.green{color:var(--green);text-shadow:var(--glow-g)}.stat-value.cyan{color:var(--cyan);text-shadow:var(--glow-c)}.stat-value.orange{color:var(--orange)}.stat-value.yellow{color:var(--yellow)}
+-  .stat-sub{font-size:10px;color:var(--text-dim);margin-top:4px}
+-  .stat-graph{height:28px;margin-top:8px;display:flex;align-items:flex-end;gap:2px}
+-  .bar{flex:1;border-radius:2px 2px 0 0;min-height:3px;transition:height .5s ease}
+-  .game-card{margin:12px 20px 0;background:var(--panel);border:1px solid rgba(0,245,255,.2);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden}
+-  .game-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(0,245,255,.04),transparent 60%)}
+-  .game-icon{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#1a2a4a,#0c1628);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;font-family:'Share Tech Mono',monospace;color:var(--cyan);font-weight:700}
+-  .game-info{flex:1}.game-name{font-size:15px;font-weight:700;color:#fff}.game-pkg{font-size:10px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;margin-top:2px}
+-  .game-boost-tag{background:rgba(0,255,136,.12);border:1px solid rgba(0,255,136,.3);border-radius:6px;padding:4px 8px;font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;white-space:nowrap;animation:pulse-badge 2s infinite}
+-  @keyframes pulse-badge{0%,100%{box-shadow:0 0 0 0 rgba(0,255,136,.3)}50%{box-shadow:0 0 0 4px rgba(0,255,136,0)}}
+-  .thermal-alert{margin:12px 20px 0;padding:10px 16px;border-radius:10px;background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.25);display:flex;align-items:center}
+-  .alert-text{font-size:12px;color:var(--green);line-height:1.4}.alert-text strong{font-weight:700;font-size:13px;margin-right:6px}
+-  .section-header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px 10px}
+-  .section-title{font-size:13px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--text-dim)}
+-  .section-action{font-size:11px;color:var(--cyan);letter-spacing:.1em;cursor:pointer;text-transform:uppercase}
+-  .app-kill-list{padding:0 20px;display:flex;flex-direction:column;gap:8px}
+-  .app-kill-item{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px 14px;transition:all .2s}
+-  .app-kill-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;background:var(--bg2);flex-shrink:0;font-weight:700;color:var(--cyan);font-family:'Share Tech Mono',monospace}
+-  .app-kill-info{flex:1;min-width:0}.app-kill-name{font-size:13px;font-weight:600;color:#dde8ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.app-kill-pkg{font-size:10px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+-  .kill-btn{width:28px;height:28px;border-radius:6px;background:rgba(255,45,85,.1);border:1px solid rgba(255,45,85,.3);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--red);font-size:12px;flex-shrink:0}
+-  .boost-btn-wrap{padding:20px;display:flex;flex-direction:column;gap:10px}
+-  .boost-now-btn{width:100%;padding:16px;border-radius:12px;border:none;background:linear-gradient(135deg,#005577,#00a8cc);color:#fff;font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;box-shadow:0 4px 24px rgba(0,245,255,.25);transition:all .2s}
+-  .boost-now-btn:active{transform:scale(.98)}
+-  .kill-all-btn{width:100%;padding:13px;border-radius:12px;border:1px solid rgba(255,45,85,.4);background:rgba(255,45,85,.08);color:var(--red);font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:all .2s}
+-  .bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:rgba(10,14,28,.97);border-top:1px solid var(--border);backdrop-filter:blur(16px);display:flex;padding:10px 0 20px;z-index:100}
+-  .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:6px;color:var(--text-dim);transition:color .2s;-webkit-tap-highlight-color:transparent}
+-  .nav-item.active{color:var(--cyan)}.nav-item.active .nav-icon{filter:drop-shadow(0 0 4px var(--cyan))}
+-  .nav-icon{font-size:20px}.nav-label{font-size:9px;letter-spacing:.15em;text-transform:uppercase}
+-  .screen-header{padding:20px 20px 0;display:flex;justify-content:space-between;align-items:center}
+-  .screen-title{font-size:26px;font-weight:900;text-transform:uppercase;color:#fff}
+-  .screen-sub{font-size:11px;color:var(--text-dim);letter-spacing:.15em;text-transform:uppercase}
+-  .add-game-btn{background:rgba(0,245,255,.1);border:1px solid rgba(0,245,255,.4);border-radius:10px;padding:8px 16px;color:var(--cyan);font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;cursor:pointer}
+-  .games-list{padding:12px 20px;display:flex;flex-direction:column;gap:10px}
+-
+-  /* ── GAME ENTRY — tappable, selectable ── */
+-  .game-entry{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all .2s;-webkit-tap-highlight-color:transparent}
+-  .game-entry:active{transform:scale(.98)}
+-  .game-entry.selected{border-color:var(--cyan);background:rgba(0,245,255,.06);box-shadow:0 0 0 1px rgba(0,245,255,.2)}
+-  .game-entry-icon{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#1a2a4a,#0c1628);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--cyan);flex-shrink:0;text-align:center;font-family:'Share Tech Mono',monospace}
+-  .game-entry-info{flex:1;min-width:0}
+-  .game-entry-name{font-size:15px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+-  .game-entry-pkg{font-size:10px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+-  .game-entry-stats{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap}
+-  .gpill{font-size:10px;font-family:'Share Tech Mono',monospace;padding:2px 7px;border-radius:4px;background:var(--bg2);color:var(--text-dim);border:1px solid var(--border)}
+-  .gpill.good{color:var(--green);border-color:rgba(0,255,136,.25)}
+-  .game-entry-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+-  .profile-badge{font-size:10px;font-weight:700;letter-spacing:.1em;padding:3px 8px;border-radius:5px;text-transform:uppercase;cursor:pointer;white-space:nowrap}
+-  .profile-badge.light{background:rgba(0,255,136,.1);color:var(--green);border:1px solid rgba(0,255,136,.3)}
+-  .profile-badge.balanced{background:rgba(0,245,255,.1);color:var(--cyan);border:1px solid rgba(0,245,255,.3)}
+-  .profile-badge.aggressive{background:rgba(255,45,85,.1);color:var(--red);border:1px solid rgba(255,45,85,.3)}
+-  .remove-btn{font-size:11px;color:var(--text-dim);cursor:pointer;padding:2px 6px;border-radius:4px;border:1px solid var(--border)}
+-  .selected-dot{width:18px;height:18px;border-radius:50%;border:2px solid var(--cyan);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+-  .selected-dot.checked{background:var(--cyan)}
+-  .selected-dot.checked::after{content:'✓';font-size:11px;color:#000;font-weight:700}
+-
+-  /* ── LAUNCH BAR — fixed bottom above nav ── */
+-  .launch-bar{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(100px);width:calc(100% - 40px);max-width:440px;background:rgba(6,8,16,.95);border:1px solid var(--cyan);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:14px;z-index:99;transition:transform .35s cubic-bezier(.175,.885,.32,1.275);box-shadow:0 -4px 30px rgba(0,245,255,.2)}
+-  .launch-bar.visible{transform:translateX(-50%) translateY(0)}
+-  .launch-bar-info{flex:1;min-width:0}
+-  .launch-bar-name{font-size:15px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+-  .launch-bar-sub{font-size:10px;color:var(--cyan);margin-top:2px}
+-  .launch-btn{padding:12px 24px;border-radius:10px;border:none;background:linear-gradient(135deg,#005577,#00c8ee);color:#fff;font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;white-space:nowrap;box-shadow:0 0 20px rgba(0,245,255,.4);transition:all .2s;flex-shrink:0}
+-  .launch-btn:active{transform:scale(.95)}
+-  .launch-cancel{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+-
+-  /* MODAL */
+-  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;align-items:flex-end;justify-content:center}
+-  .modal-overlay.open{display:flex}
+-  .modal-sheet{width:100%;max-width:480px;background:#0c1424;border-top:1px solid var(--border);border-radius:20px 20px 0 0;padding:20px;animation:slideUp .3s ease both;max-height:80vh;overflow-y:auto}
+-  @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+-  .modal-title{font-size:18px;font-weight:700;color:#fff;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
+-  .modal-close{color:var(--text-dim);cursor:pointer;font-size:22px;line-height:1}
+-  .modal-app-item{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:10px;cursor:pointer;margin-bottom:6px;border:1px solid transparent;transition:all .15s}
+-  .modal-app-item:active{background:rgba(0,245,255,.08);border-color:rgba(0,245,255,.2)}
+-  .modal-app-icon{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#1a2a4a,#0c1628);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--cyan);font-family:'Share Tech Mono',monospace;flex-shrink:0}
+-  .modal-app-info{flex:1;min-width:0}.modal-app-name{font-size:14px;font-weight:600;color:#dde8ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.modal-app-pkg{font-size:10px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+-  .modal-add-icon{font-size:20px;color:var(--cyan);flex-shrink:0}
+-  .loading-msg{text-align:center;padding:30px;color:var(--text-dim);font-size:13px}
+-  /* PROFILE MODAL */
+-  .profile-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:300;align-items:center;justify-content:center}
+-  .profile-modal.open{display:flex}
+-  .profile-card{background:#0c1424;border:1px solid var(--border);border-radius:16px;padding:20px;width:300px;animation:fadeIn .2s ease}
+-  .p-opt{padding:14px 16px;border-radius:10px;margin-bottom:8px;cursor:pointer;border:1px solid var(--border);display:flex;align-items:center;gap:12px}
+-  .p-opt:active{transform:scale(.98)}
+-  .p-opt.light{border-color:rgba(0,255,136,.3);background:rgba(0,255,136,.05)}.p-opt.balanced{border-color:rgba(0,245,255,.3);background:rgba(0,245,255,.05)}.p-opt.aggro{border-color:rgba(255,45,85,.3);background:rgba(255,45,85,.05)}
+-  .p-opt-icon{font-size:22px}.p-name{font-size:15px;font-weight:700}.p-desc{font-size:11px;color:var(--text-dim)}
+-  .p-opt.light .p-name{color:var(--green)}.p-opt.balanced .p-name{color:var(--cyan)}.p-opt.aggro .p-name{color:var(--red)}
+-  /* SETTINGS */
+-  .settings-list{padding:12px 20px;display:flex;flex-direction:column;gap:10px}
+-  .setting-card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px}
+-  .setting-row{display:flex;align-items:center;justify-content:space-between}
+-  .setting-label{font-size:15px;font-weight:700;color:#dde8ff}.setting-desc{font-size:11px;color:var(--text-dim);margin-top:3px}
+-  .toggle-sw{width:46px;height:26px;background:var(--bg2);border:1px solid var(--border);border-radius:13px;cursor:pointer;position:relative;transition:all .3s;flex-shrink:0}
+-  .toggle-sw::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--text-dim);transition:all .3s}
+-  .toggle-sw.on{background:rgba(0,245,255,.15);border-color:var(--cyan);box-shadow:var(--glow-c)}.toggle-sw.on::after{transform:translateX(20px);background:var(--cyan)}
+-  input[type=range]{-webkit-appearance:none;width:100%;height:4px;border-radius:2px;background:var(--border);outline:none;margin-top:10px}
+-  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--cyan);cursor:pointer;box-shadow:0 0 8px var(--cyan);border:2px solid var(--bg)}
+-  .slider-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);letter-spacing:.1em;text-transform:uppercase;margin-top:8px}
+-  .slider-value{text-align:center;font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--cyan);margin-top:8px}
+-  .kl-item{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(30,45,74,.5)}
+-  .kl-name{font-size:13px;color:var(--text)}.kl-pkg{font-size:10px;color:var(--text-dim);font-family:'Share Tech Mono',monospace}
+-  .kl-rm{font-size:16px;color:var(--red);cursor:pointer;padding:4px 8px}
+-  .add-kill-btn{width:100%;margin-top:10px;padding:10px;border-radius:8px;border:1px dashed rgba(0,245,255,.3);background:transparent;color:var(--cyan);font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:600;cursor:pointer}
+-  .empty-state{text-align:center;padding:40px 20px;color:var(--text-dim)}
+-  .empty-state .e-icon{font-size:40px;margin-bottom:12px}
+-  .empty-state .e-title{font-size:16px;font-weight:700;color:var(--text)}
+-  .empty-state .e-sub{font-size:12px;margin-top:6px}
+-  .session-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;align-items:flex-start;gap:12px}
+-  .session-card-body{flex:1;min-width:0}
+-  .session-delete-btn{width:30px;height:30px;border-radius:8px;background:rgba(255,45,85,.1);border:1px solid rgba(255,45,85,.3);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--red);font-size:15px;flex-shrink:0;margin-top:2px}
+-  .game-entry-icon img,.modal-app-icon img,.app-kill-icon img{width:100%;height:100%;border-radius:10px;object-fit:cover}
+-  .reset-sessions-btn{width:26px;height:26px;border-radius:6px;background:rgba(255,45,85,.08);border:1px solid rgba(255,45,85,.25);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--red);font-size:13px;flex-shrink:0}
+-  .bar-anim{animation:barGrow 1s ease both}
+-  @keyframes barGrow{from{height:0!important}}
+-</style>
+-</head>
+-<body>
+-
+-<!-- ═══════════ DASHBOARD ═══════════ -->
+-<div class="screen active" id="screen-dashboard">
+-  <div class="status-bar">
+-    <div class="shizuku-badge" id="shizukuBadge"><div class="dot"></div>SHIZUKU ACTIVE</div>
+-    <span style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a6080" id="clockEl">--:--</span>
+-  </div>
+-  <div class="header">
+-    <div class="header-top">
+-      <div><div class="app-title">⚡ Performance</div><div class="app-subtitle">GameBooster</div></div>
+-      <div class="settings-btn" onclick="navigate('settings')">⚙</div>
+-    </div>
+-  </div>
+-  <div class="boost-card">
+-    <div class="boost-top">
+-      <div><div class="boost-label">Auto Boost</div><div class="boost-status" id="boostStatus">⚡ ACTIVE</div></div>
+-      <div class="boost-toggle active" id="boostToggle" onclick="toggleAutoBoost(this)"></div>
+-    </div>
+-    <div class="cpu-arc-wrap">
+-      <div class="arc-container">
+-        <svg width="160" height="90" viewBox="0 0 160 90">
+-          <path d="M 14 88 A 66 66 0 0 1 146 88" fill="none" stroke="#1e2d4a" stroke-width="10" stroke-linecap="round"/>
+-          <path d="M 14 88 A 66 66 0 0 1 146 88" fill="none" stroke="url(#cpuGrad)" stroke-width="10" stroke-linecap="round" stroke-dasharray="0 283" id="cpuArc" style="filter:drop-shadow(0 0 6px #00f5ff88)"/>
+-          <defs><linearGradient id="cpuGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#00ff88"/><stop offset="60%" stop-color="#00f5ff"/><stop offset="100%" stop-color="#ff6b00"/></linearGradient></defs>
+-        </svg>
+-        <div class="arc-value" id="cpuText">--%</div>
+-      </div>
+-      <div class="arc-sub">CPU Load</div>
+-    </div>
+-  </div>
+-  <div class="stat-grid">
+-    <div class="stat-card ram ok bat-full">
+-      <div class="stat-icon">🧠</div><div class="stat-name">Free RAM</div>
+-      <div class="stat-value green" id="ramVal">--<span style="font-size:14px"> MB</span></div>
+-      <div class="stat-sub" id="ramSub">Loading...</div>
+-      <div class="stat-graph">
+-        <div class="bar bar-anim" style="height:40%;background:#1e3a2a"></div>
+-        <div class="bar bar-anim" style="height:35%;background:#1e3a2a"></div>
+-        <div class="bar bar-anim" style="height:55%;background:#1e3a2a"></div>
+-        <div class="bar bar-anim" style="height:30%;background:#1e3a2a"></div>
+-        <div class="bar" id="ramBar" style="height:50%;background:var(--green)"></div>
+-      </div>
+-    </div>
+-
+-    <div class="stat-card bat ok bat-full">
+-      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+-        <div>
+-          <div class="stat-icon">🔋</div><div class="stat-name">Battery Temperature</div>
+-          <div class="stat-value yellow" id="batVal">--<span style="font-size:14px">°C</span></div>
+-          <div class="stat-sub" id="batSub">battery</div>
+-        </div>
+-        <div style="text-align:right">
+-          <div class="stat-name" style="margin-bottom:4px">Status</div>
+-          <div id="batStatus" style="font-size:13px;color:var(--green);font-family:'Share Tech Mono',monospace">COOL</div>
+-        </div>
+-      </div>
+-      <div class="stat-graph" style="margin-top:10px">
+-        <div class="bar bar-anim" style="height:30%;background:#2a2200"></div>
+-        <div class="bar bar-anim" style="height:28%;background:#2a2200"></div>
+-        <div class="bar bar-anim" style="height:33%;background:#2a2200"></div>
+-        <div class="bar bar-anim" style="height:30%;background:#2a2200"></div>
+-        <div class="bar bar-anim" style="height:35%;background:#2a2200"></div>
+-        <div class="bar bar-anim" style="height:32%;background:#2a2200"></div>
+-        <div class="bar bar-anim" style="height:38%;background:#2a2200"></div>
+-        <div class="bar" id="batBar" style="height:40%;background:var(--yellow)"></div>
+-      </div>
+-    </div>
+-  </div>
+-  <div class="thermal-alert" id="thermalAlert">
+-    <div class="alert-text"><strong id="alertTitle">Temperature Normal</strong><span id="alertMsg">Device is running cool</span></div>
+-  </div>
+-  <div class="boost-btn-wrap">
+-    <button class="boost-now-btn" id="boostNowBtn">⚡ BOOST NOW</button>
+-    <button class="kill-all-btn" id="killAllBtn">💀 KILL ALL BACKGROUND APPS</button>
+-  </div>
+-</div>
+-
+-<!-- ═══════════ GAMES ═══════════ -->
+-<div class="screen" id="screen-games">
+-  <div class="screen-header">
+-    <div><div class="screen-sub">⚡ Manage</div><div class="screen-title">Games</div></div>
+-    <div class="add-game-btn" onclick="openAddGame()">＋ Add Game</div>
+-  </div>
+-  <div style="padding:8px 20px 0;font-size:11px;color:var(--text-dim)">Tap a game to select it, then tap Launch ⚡</div>
+-  <div class="games-list" id="gamesList"></div>
+-  <div id="noGamesMsg" class="empty-state">
+-    <div class="e-icon">🎮</div>
+-    <div class="e-title">No games added yet</div>
+-    <div class="e-sub">Tap <b style="color:var(--cyan)">＋ Add Game</b> to add from your device</div>
+-  </div>
+-</div>
+-
+-<!-- ═══════════ APPS ═══════════ -->
+-<div class="screen" id="screen-apps">
+-  <div class="screen-header"><div><div class="screen-sub">📱 Manager</div><div class="screen-title">Apps</div></div></div>
+-  <div style="padding:12px 20px 6px;font-size:12px;color:var(--text-dim);line-height:1.6">User-installed apps that will be force-stopped when boost activates. Tap ✕ to remove.</div>
+-  <div class="settings-list">
+-    <div class="setting-card">
+-      <div id="appsKillList"><div class="loading-msg">Loading your apps...</div></div>
+-      <button class="add-kill-btn" onclick="openAddToKillList()">＋ Add App to Kill List</button>
+-    </div>
+-  </div>
+-</div>
+-
+-<!-- ═══════════ HISTORY ═══════════ -->
+-<div class="screen" id="screen-history">
+-  <div class="screen-header"><div><div class="screen-sub">📜 Log</div><div class="screen-title">History</div></div></div>
+-  <div style="padding:12px 20px" id="historyList">
+-    <div class="empty-state"><div class="e-icon">📊</div><div class="e-title">No sessions yet</div><div class="e-sub">Boost sessions will appear here</div></div>
+-  </div>
+-</div>
+-
+-<!-- ═══════════ SETTINGS ═══════════ -->
+-<div class="screen" id="screen-settings">
+-  <div class="screen-header"><div><div class="screen-sub">⚙ Configure</div><div class="screen-title">Settings</div></div></div>
+-  <div class="settings-list">
+-    <div class="setting-card">
+-      <div class="setting-row"><div><div class="setting-label">⚡ Auto Boost</div><div class="setting-desc">Boost automatically when CPU exceeds 80%</div></div><div class="toggle-sw on" id="autoBoostToggle" onclick="toggleSetting(this,'autoBoost')"></div></div>
+-    </div>
+-    <div class="setting-card">
+-      <div class="setting-row"><div><div class="setting-label">🎮 Boost on Game Launch</div><div class="setting-desc">Kill background apps when a game opens</div></div><div class="toggle-sw on" onclick="toggleSetting(this,'boostOnLaunch')"></div></div>
+-    </div>
+-    <div class="setting-card">
+-      <div class="setting-label">🔥 Boost Aggressiveness</div>
+-      <div class="setting-desc">How aggressively background apps are killed</div>
+-      <input type="range" min="1" max="3" value="2" id="aggroSlider" oninput="updateAggro(this.value)">
+-      <div class="slider-labels"><span>Light</span><span>Balanced</span><span>Aggressive</span></div>
+-      <div class="slider-value" id="aggroLabel">⚖️ Balanced</div>
+-    </div>
+-    <div class="setting-card">
+-      <div class="setting-row"><div><div class="setting-label">💀 Kill List</div><div class="setting-desc">Apps force-stopped during boost</div></div><div style="font-size:11px;color:var(--cyan);cursor:pointer" onclick="navigate('apps')">Edit →</div></div>
+-      <div id="killPreview" style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px"></div>
+-    </div>
+-    <div class="setting-card">
+-      <div class="setting-row"><div><div class="setting-label">🔌 Shizuku</div><div class="setting-desc" id="shizukuStatusText">Checking...</div></div><div id="shizukuDot" style="width:12px;height:12px;border-radius:50%;background:var(--text-dim)"></div></div>
+-    </div>
+-  </div>
+-</div>
+-
+-<!-- BOTTOM NAV -->
+-<div class="bottom-nav">
+-  <div class="nav-item active" onclick="navigate('dashboard')" id="nav-dashboard"><div class="nav-icon">📊</div><div class="nav-label">Dashboard</div></div>
+-  <div class="nav-item" onclick="navigate('games')" id="nav-games"><div class="nav-icon">🎮</div><div class="nav-label">Games</div></div>
+-  <div class="nav-item" onclick="navigate('apps')" id="nav-apps"><div class="nav-icon">📱</div><div class="nav-label">Apps</div></div>
+-  <div class="nav-item" onclick="navigate('history')" id="nav-history"><div class="nav-icon">📜</div><div class="nav-label">History</div></div>
+-  <div class="nav-item" onclick="navigate('settings')" id="nav-settings"><div class="nav-icon">⚙</div><div class="nav-label">Settings</div></div>
+-</div>
+-
+-<!-- ⚡ LAUNCH BAR — slides up when game selected -->
+-<div class="launch-bar" id="launchBar">
+-  <div class="launch-bar-info">
+-    <div class="launch-bar-name" id="launchBarName">--</div>
+-    <div class="launch-bar-sub">⚡ Boost + Launch</div>
+-  </div>
+-  <button class="launch-btn" id="launchBtn" onclick="launchSelectedGame()">🚀 LAUNCH</button>
+-  <button class="launch-cancel" onclick="deselectGame()">✕</button>
+-</div>
+-
+-<!-- ADD GAME MODAL -->
+-<div class="modal-overlay" id="addGameModal">
+-  <div class="modal-sheet">
+-    <div class="modal-title"><span>Your Installed Apps</span><span class="modal-close" onclick="closeModal('addGameModal')">✕</span></div>
+-    <div id="installedGamesList"><div class="loading-msg">Scanning your device...</div></div>
+-  </div>
+-</div>
+-
+-<!-- ADD TO KILL LIST MODAL -->
+-<div class="modal-overlay" id="addKillModal">
+-  <div class="modal-sheet">
+-    <div class="modal-title"><span>Select App to Kill</span><span class="modal-close" onclick="closeModal('addKillModal')">✕</span></div>
+-    <div id="allAppsList"><div class="loading-msg">Loading apps...</div></div>
+-  </div> 
+-</div>
+-
+-<!-- PROFILE MODAL -->
+-<div class="profile-modal" id="profileModal">
+-  <div class="profile-card">
+-    <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:14px">Select Boost Profile</div>
+-    <div class="p-opt light" onclick="selectProfile('light')"><div class="p-opt-icon">🟢</div><div><div class="p-name">Light</div><div class="p-desc">Kill fewer apps, save battery</div></div></div>
+-    <div class="p-opt balanced" onclick="selectProfile('balanced')"><div class="p-opt-icon">⚖️</div><div><div class="p-name">Balanced</div><div class="p-desc">Default — good for most games</div></div></div>
+-    <div class="p-opt aggro" onclick="selectProfile('aggressive')"><div class="p-opt-icon">🔴</div><div><div class="p-name">Aggressive</div><div class="p-desc">Kill everything, max RAM for game</div></div></div>
+-    <div style="text-align:center;margin-top:12px"><span style="font-size:12px;color:var(--text-dim);cursor:pointer" onclick="closeModal('profileModal')">Cancel</span></div>
+-  </div>
+-</div>
+-
+-<script>
+-// ═══════════════════════════════════
+-// STATE
+-// ═══════════════════════════════════
+-const S = {
+-  autoBoost: true, boostOnLaunch: true, aggro: 2,
+-  games: [],
+-  killList: [],
+-  sessions: [],
+-  selectedGameIdx: -1,
+-  profileTarget: -1,
+-};
+-
+-// ═══════════════════════════════════
+-// NAV
+-// ═══════════════════════════════════
+-function navigate(s) {
+-  document.querySelectorAll('.screen').forEach(x => x.classList.remove('active'));
+-  document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
+-  document.getElementById('screen-' + s).classList.add('active');
+-  document.getElementById('nav-' + s).classList.add('active');
+-  if (s === 'games')    renderGames();
+-  if (s === 'apps')     renderAppsKillList();
+-  if (s === 'settings') { renderKillPreview(); updateShizukuStatus(); }
+-  if (s === 'history')  renderHistory();
+-  if (s === 'dashboard') renderDashKillList();
+-}
+-
+-// ═══════════════════════════════════
+-// CLOCK
+-// ═══════════════════════════════════
+-function updateClock() {
+-  const n = new Date();
+-  let h = n.getHours();
+-  const ampm = h >= 12 ? 'PM' : 'AM';
+-  h = h % 12 || 12;
+-  const m = n.getMinutes().toString().padStart(2,'0');
+-  document.getElementById('clockEl').textContent = h + ':' + m + ' ' + ampm;
+-}
+-updateClock(); setInterval(updateClock, 10000);
+-
+-// ═══════════════════════════════════
+-// LOAD REAL KILL LIST FROM DEVICE
+-// ═══════════════════════════════════
+-function loadKillListFromDevice() {
+-  // Kill list starts EMPTY — user manually adds apps they want to kill
+-  // Just verify bridge works
+-  if (!window.GameBooster) return;
+-  try {
+-    const test = JSON.parse(window.GameBooster.getKillableApps());
+-    console.log('Bridge OK — ' + test.length + ' apps available to kill');
+-  } catch(e) { console.error('loadKillList bridge error:', e); }
+-  renderDashKillList();
+-  renderKillPreview();
+-}
+-
+-// ═══════════════════════════════════
+-// DASHBOARD KILL LIST
+-// ═══════════════════════════════════
+-function renderDashKillList() {
+-  const el = document.getElementById('dashKillList');
+-  el.innerHTML = '';
+-  if (S.killList.length === 0) {
+-    el.innerHTML = '<div class="loading-msg">No apps in kill list</div>'; return;
+-  }
+-  S.killList.slice(0, 5).forEach(app => {
+-    const d = document.createElement('div');
+-    d.className = 'app-kill-item';
+-    const initials = app.name.substring(0, 3).toUpperCase();
+-    d.innerHTML = `
+-      <div class="app-kill-icon">${initials}</div>
+-      <div class="app-kill-info">
+-        <div class="app-kill-name">${app.name}</div>
+-        <div class="app-kill-pkg">${app.pkg}</div>
+-      </div>
+-      <div class="kill-btn" onclick="killOneApp('${app.pkg.replace(/'/g,"\\'")}',this)">✕</div>`;
+-    el.appendChild(d);
+-  });
+-}
+-
+-function killOneApp(pkg, btn) {
+-  const item = btn.closest('.app-kill-item');
+-  item.style.transition = 'all .3s ease';
+-  item.style.opacity = '0'; item.style.transform = 'translateX(20px)';
+-  setTimeout(() => item.remove(), 300);
+-  if (window.GameBooster) window.GameBooster.killApp(pkg);
+-}
+-
+-// ═══════════════════════════════════
+-// BOOST BUTTONS
+-// ═══════════════════════════════════
+-function toggleAutoBoost(el) {
+-  el.classList.toggle('active'); S.autoBoost = el.classList.contains('active');
+-  const s = document.getElementById('boostStatus');
+-  s.textContent = S.autoBoost ? '⚡ ACTIVE' : '○  IDLE';
+-  s.style.color  = S.autoBoost ? '#00f5ff' : '#4a6080';
+-  const t = document.getElementById('autoBoostToggle');
+-  if (t) S.autoBoost ? t.classList.add('on') : t.classList.remove('on');
+-  if (window.GameBooster) window.GameBooster.setAutoBoost(S.autoBoost);
+-}
+-
+-document.getElementById('boostNowBtn').onclick = function() {
+-  this.textContent = '🧹 FREEING RAM...';
+-  if (window.GameBooster) window.GameBooster.boostNow();
+-  setTimeout(() => { this.textContent = '⚡ BOOST NOW'; }, 3000);
+-};
+-
+-document.getElementById('killAllBtn').onclick = function() {
+-  const btn = this; btn.textContent = '💀 KILLING...'; btn.style.opacity = '0.6';
+-  if (window.GameBooster) window.GameBooster.killAllApps();
+-  setTimeout(() => {
+-    btn.textContent = '✅ ALL KILLED'; btn.style.opacity = '1'; btn.style.color = '#00ff88';
+-    setTimeout(() => { btn.textContent = '💀 KILL ALL BACKGROUND APPS'; btn.style.color = ''; }, 3000);
+-  }, 1500);
+-};
+-
+-// ═══════════════════════════════════
+-// GAMES SCREEN
+-// ═══════════════════════════════════
+-function getIconHtml(pkg, name, cls) {
+-  if (window.GameBooster) {
+-    try {
+-      const b64 = window.GameBooster.getAppIcon(pkg);
+-      if (b64 && b64.length > 0)
+-        return `<img src="data:image/png;base64,${b64}" alt="${name}" style="width:100%;height:100%;border-radius:10px;object-fit:cover">`;
+-    } catch(e) {}
+-  }
+-  return name.substring(0, 4).toUpperCase();
+-}
+-
+-function renderGames() {
+-  const list = document.getElementById('gamesList');
+-  const msg  = document.getElementById('noGamesMsg');
+-  list.innerHTML = '';
+-  if (S.games.length === 0) { msg.style.display = 'block'; return; }
+-  msg.style.display = 'none';
+-  S.games.forEach((g, i) => {
+-    const el = document.createElement('div');
+-    const isSelected = S.selectedGameIdx === i;
+-    el.className = 'game-entry' + (isSelected ? ' selected' : '');
+-    el.onclick = () => selectGame(i);
+-    const iconContent = getIconHtml(g.pkg, g.name, 'game-entry-icon');
+-    el.innerHTML = `
+-      <div class="game-entry-icon">${iconContent}</div>
+-      <div class="game-entry-info">
+-        <div class="game-entry-name">${g.name}</div>
+-        <div class="game-entry-pkg">${g.pkg}</div>
+-        <div class="game-entry-stats" style="align-items:center">
+-          <div class="gpill good">Sessions: ${g.sessions||0}</div>
+-          <div class="reset-sessions-btn" title="Reset sessions" onclick="event.stopPropagation();resetSessions(${i})">🗑</div>
+-        </div>
+-      </div>
+-      <div class="game-entry-right">
+-        <div class="profile-badge ${g.profile}" onclick="event.stopPropagation();openProfileModal(${i})">${profileLabel(g.profile)}</div>
+-        <div class="remove-btn" onclick="event.stopPropagation();removeGame(${i})">✕</div>
+-      </div>`;
+-    list.appendChild(el);
+-  });
+-}
+-
+-function resetSessions(i) {
+-  const pkg = S.games[i].pkg;
+-  S.games[i].sessions = 0;
+-  if (window.GameBooster) window.GameBooster.resetGameSessions(pkg);
+-  renderGames();
+-  persistGames();
+-}
+-
+-function profileLabel(p) {
+-  return p==='light'?'🟢 Light':p==='aggressive'?'🔴 Aggro':'⚖️ Balanced';
+-}
+-
+-function removeGame(i) {
+-  if (S.selectedGameIdx === i) deselectGame();
+-  S.games.splice(i,1); renderGames(); persistGames();
+-}
+-
+-// ── Select / deselect game → show launch bar ──
+-function selectGame(i) {
+-  if (S.selectedGameIdx === i) { deselectGame(); return; }
+-  S.selectedGameIdx = i;
+-  const g = S.games[i];
+-  document.getElementById('launchBarName').textContent = g.name;
+-  document.getElementById('launchBar').classList.add('visible');
+-  renderGames();
+-}
+-
+-function deselectGame() {
+-  S.selectedGameIdx = -1;
+-  document.getElementById('launchBar').classList.remove('visible');
+-  renderGames();
+-}
+-
+-// ── Launch selected game ──
+-function launchSelectedGame() {
+-  if (S.selectedGameIdx < 0) return;
+-  const g = S.games[S.selectedGameIdx];
+-  const btn = document.getElementById('launchBtn');
+-  btn.textContent = '⚡ LAUNCHING...';
+-  btn.style.opacity = '0.7';
+-  if (window.GameBooster) {
+-    window.GameBooster.launchApp(g.pkg);
+-  }
+-  setTimeout(() => {
+-    btn.textContent = '🚀 LAUNCH';
+-    btn.style.opacity = '1';
+-  }, 2000);
+-}
+-
+-function openAddGame() {
+-  document.getElementById('installedGamesList').innerHTML =
+-    '<div class="loading-msg">Scanning your device...</div>';
+-  document.getElementById('addGameModal').classList.add('open');
+-  setTimeout(() => {
+-    if (!window.GameBooster) {
+-      document.getElementById('installedGamesList').innerHTML =
+-        '<div class="loading-msg">⚠️ Install APK on device first</div>'; return;
+-    }
+-    try {
+-      const apps = JSON.parse(window.GameBooster.getInstalledGames());
+-      const list = document.getElementById('installedGamesList');
+-      list.innerHTML = '';
+-      const available = apps.filter(g => !S.games.find(e => e.pkg === g.pkg));
+-      if (available.length === 0) {
+-        list.innerHTML = '<div class="loading-msg">All your apps are already added!</div>'; return;
+-      }
+-      available.forEach(g => {
+-        const el = document.createElement('div');
+-        el.className = 'modal-app-item';
+-        const iconContent = getIconHtml(g.pkg, g.name, 'modal-app-icon');
+-        el.innerHTML = `
+-          <div class="modal-app-icon">${iconContent}</div>
+-          <div class="modal-app-info">
+-            <div class="modal-app-name">${g.name}</div>
+-            <div class="modal-app-pkg">${g.pkg}</div>
+-          </div>
+-          <div class="modal-add-icon">＋</div>`;
+-        el.onclick = () => addGame(g);
+-        list.appendChild(el);
+-      });
+-    } catch(e) {
+-      document.getElementById('installedGamesList').innerHTML =
+-        '<div class="loading-msg">Error: ' + e.message + '</div>';
+-    }
+-  }, 150);
+-}
+-
+-function addGame(g) {
+-  S.games.push({...g, profile:'balanced', sessions:0, avgFps:'--', ramFreed:'--'});
+-  closeModal('addGameModal'); renderGames();
+-  persistGames();
+-  if (window.GameBooster) window.GameBooster.addGame(g.pkg,'balanced');
+-}
+-
+-function persistGames() {
+-  if (window.GameBooster) {
+-    window.GameBooster.saveGames(JSON.stringify(S.games));
+-  }
+-}
+-
+-function persistKillList() {
+-  if (window.GameBooster) {
+-    window.GameBooster.saveKillList(JSON.stringify(S.killList));
+-  }
+-}
+-
+-function openProfileModal(i) { S.profileTarget=i; document.getElementById('profileModal').classList.add('open'); }
+-function selectProfile(p) {
+-  if (S.profileTarget>=0) { S.games[S.profileTarget].profile=p; }
+-  closeModal('profileModal'); renderGames(); persistGames();
+-}
+-
+-// ═══════════════════════════════════
+-// APPS SCREEN
+-// ═══════════════════════════════════
+-function renderAppsKillList() {
+-  const el = document.getElementById('appsKillList');
+-  el.innerHTML = '';
+-  if (S.killList.length === 0) {
+-    el.innerHTML = '<div class="loading-msg">No apps in kill list</div>'; return;
+-  }
+-  S.killList.forEach((app, i) => {
+-    const item = document.createElement('div');
+-    item.className = 'kl-item';
+-    item.innerHTML = `
+-      <div style="min-width:0;flex:1">
+-        <div class="kl-name">${app.name}</div>
+-        <div class="kl-pkg">${app.pkg}</div>
+-      </div>
+-      <div class="kl-rm" onclick="removeFromKillList(${i})">✕</div>`;
+-    el.appendChild(item);
+-  });
+-}
+-
+-function removeFromKillList(i) {
+-  S.killList.splice(i,1);
+-  renderAppsKillList(); renderKillPreview(); renderDashKillList();
+-  persistKillList();
+-}
+-
+-function openAddToKillList() {
+-  document.getElementById('allAppsList').innerHTML = '<div class="loading-msg">Loading your apps...</div>';
+-  document.getElementById('addKillModal').classList.add('open');
+-  setTimeout(() => {
+-    if (!window.GameBooster) {
+-      document.getElementById('allAppsList').innerHTML = '<div class="loading-msg">⚠️ Install APK on device first</div>'; return;
+-    }
+-    try {
+-      const apps = JSON.parse(window.GameBooster.getAllUserApps());
+-      const list = document.getElementById('allAppsList');
+-      list.innerHTML = '';
+-      const available = apps.filter(a => !S.killList.find(k => k.pkg===a.pkg));
+-      if (available.length===0) {
+-        list.innerHTML = '<div class="loading-msg">✅ All your apps are already in the kill list!</div>'; return;
+-      }
+-      available.forEach(a => {
+-        const el = document.createElement('div');
+-        el.className = 'modal-app-item';
+-        const initials = a.name.substring(0,3).toUpperCase();
+-        el.innerHTML = `
+-          <div class="modal-app-icon">${initials}</div>
+-          <div class="modal-app-info">
+-            <div class="modal-app-name">${a.name}</div>
+-            <div class="modal-app-pkg">${a.pkg}</div>
+-          </div>
+-          <div class="modal-add-icon">＋</div>`;
+-        el.onclick = () => {
+-          S.killList.push({name:a.name, pkg:a.pkg});
+-          closeModal('addKillModal');
+-          renderAppsKillList(); renderKillPreview(); renderDashKillList();
+-          persistKillList();
+-        };
+-        list.appendChild(el);
+-      });
+-    } catch(e) {
+-      document.getElementById('allAppsList').innerHTML = '<div class="loading-msg">Error: '+e.message+'</div>';
+-    }
+-  }, 150);
+-}
+-
+-// ═══════════════════════════════════
+-// SETTINGS
+-// ═══════════════════════════════════
+-function toggleSetting(el, key) {
+-  el.classList.toggle('on'); S[key] = el.classList.contains('on');
+-  if (key==='autoBoost') {
+-    document.getElementById('boostToggle').classList[S.autoBoost?'add':'remove']('active');
+-    const s = document.getElementById('boostStatus');
+-    s.textContent = S.autoBoost?'⚡ ACTIVE':'○  IDLE';
+-    s.style.color  = S.autoBoost?'#00f5ff':'#4a6080';
+-    if (window.GameBooster) window.GameBooster.setAutoBoost(S.autoBoost);
+-  }
+-  if (window.GameBooster) window.GameBooster.saveSetting(key, String(S[key]));
+-}
+-
+-function updateAggro(v) {
+-  S.aggro=parseInt(v);
+-  const labels={1:'🟢 Light',2:'⚖️ Balanced',3:'🔴 Aggressive'};
+-  document.getElementById('aggroLabel').textContent=labels[v];
+-  if (window.GameBooster) window.GameBooster.setAggro(parseInt(v));
+-  if (window.GameBooster) window.GameBooster.saveSetting('aggro', String(v));
+-}
+-
+-function renderKillPreview() {
+-  const el = document.getElementById('killPreview'); el.innerHTML='';
+-  S.killList.slice(0,3).forEach(app=>{
+-    el.innerHTML+=`<div class="kl-item"><div class="kl-name">${app.name}</div></div>`;
+-  });
+-  if (S.killList.length>3)
+-    el.innerHTML+=`<div style="font-size:11px;color:var(--text-dim);padding:5px 0">+ ${S.killList.length-3} more apps...</div>`;
+-}
+-
+-function updateShizukuStatus() {
+-  const dot=document.getElementById('shizukuDot'); const txt=document.getElementById('shizukuStatusText');
+-  if (window.GameBooster && window.GameBooster.isShizukuReady()) {
+-    dot.style.background='var(--green)'; dot.style.boxShadow='0 0 6px var(--green)';
+-    txt.textContent='Connected and ready ✅';
+-  } else {
+-    dot.style.background='var(--red)'; dot.style.boxShadow='0 0 6px var(--red)';
+-    txt.textContent='Not connected — open Shizuku app first';
+-  }
+-}
+-
+-// ═══════════════════════════════════
+-// HISTORY
+-// ═══════════════════════════════════
+-function renderHistory() {
+-  const el = document.getElementById('historyList');
+-  if (S.sessions.length === 0) {
+-    el.innerHTML = '<div class="empty-state"><div class="e-icon">📊</div><div class="e-title">No sessions yet</div><div class="e-sub">Launch a game to record a session</div></div>'; return;
+-  }
+-  // Delete all button at top
+-  let html = `<div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+-    <div onclick="deleteAllSessions()" style="display:flex;align-items:center;gap:6px;background:rgba(255,45,85,.1);border:1px solid rgba(255,45,85,.3);border-radius:8px;padding:6px 12px;cursor:pointer;color:var(--red);font-size:12px;font-weight:700;letter-spacing:.05em">
+-      🗑 Clear All
+-    </div>
+-  </div>`;
+-  el.innerHTML = html;
+-  S.sessions.slice().reverse().forEach((s, ri) => {
+-    const realIdx = S.sessions.length - 1 - ri;
+-    const c = document.createElement('div');
+-    c.className = 'session-card';
+-    c.innerHTML = `
+-      <div class="session-card-body">
+-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+-          <b style="color:#fff;font-size:15px">${s.gameName}</b>
+-          <span style="font-size:10px;color:var(--text-dim);font-family:'Share Tech Mono',monospace">${s.date}</span>
+-        </div>
+-        <div style="display:flex;gap:8px;flex-wrap:wrap">
+-          <div class="gpill" style="color:var(--cyan);border-color:rgba(0,245,255,.25)">▶ ${s.startTime}</div>
+-          <div class="gpill" style="color:var(--red);border-color:rgba(255,45,85,.25)">■ ${s.endTime}</div>
+-          <div class="gpill good">⏱ ${s.duration}</div>
+-        </div>
+-      </div>
+-      <div class="session-delete-btn" onclick="deleteSession(${realIdx})">🗑</div>`;
+-    el.appendChild(c);
+-  });
+-}
+-
+-function deleteSession(i) {
+-  S.sessions.splice(i, 1);
+-  persistSessions();
+-  renderHistory();
+-}
+-
+-function deleteAllSessions() {
+-  S.sessions = [];
+-  persistSessions();
+-  renderHistory();
+-}
+-
+-function persistSessions() {
+-  if (window.GameBooster) {
+-    window.GameBooster.saveSessionsJson(JSON.stringify(S.sessions));
+-  }
+-}
+-
+-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+-
+-// ═══════════════════════════════════
+-// KOTLIN BRIDGE — REAL DATA RECEIVERS
+-// ═══════════════════════════════════
+-function updateCpu(percent) {
+-  const fill = Math.round((percent / 100) * 283);
+-  document.getElementById('cpuArc').setAttribute('stroke-dasharray', fill + ' 283');
+-  document.getElementById('cpuText').textContent = percent + '%';
+-  const color = percent>80?'#ff2d55':percent>60?'#ff6b00':'#00f5ff';
+-  document.getElementById('cpuText').style.color = color;
+-}
+-
+-function updateRam(availMb, totalMb) {
+-  document.getElementById('ramVal').innerHTML = availMb + '<span style="font-size:14px"> MB</span>';
+-  document.getElementById('ramSub').textContent = 'of ' + totalMb + ' MB total';
+-  const pct = Math.round((availMb/totalMb)*100);
+-  document.getElementById('ramBar').style.height = Math.max(pct,5) + '%';
+-}
+-
+-function updateThermal(cpuTemp, batTemp, level) {
+-  // Legacy — split into updateCpuTemp and updateBatTemp now
+-  updateCpuTemp(cpuTemp);
+-  updateBatTemp(batTemp, level);
+-}
+-
+-function updateFps(fps) {
+-  // FPS card removed — kept for compatibility
+-}
+-
+-// ── CPU Temperature (from CpuMonitor via Shizuku) ──
+-function updateCpuTemp(temp) {
+-  const el = document.getElementById('tempVal');
+-  el.innerHTML = temp + '<span style="font-size:14px">°C</span>';
+-  const color = temp>=85?'#ff2d55':temp>=70?'#ff3300':temp>=50?'#ff6b00':'#00ff88';
+-  el.style.color = color;
+-  const level = temp>=85?'CRITICAL':temp>=70?'HOT':temp>=50?'WARM':'COOL';
+-  document.getElementById('tempSub').textContent = level;
+-  document.getElementById('tempBar').style.height = Math.min(temp,100)+'%';
+-  document.getElementById('tempCard').className = 'stat-card temp '+(level==='COOL'?'ok':level==='WARM'?'warn':'danger');
+-}
+-
+-// ── Battery Temperature (from ThermalMonitor BatteryManager) ──
+-function updateBatTemp(batTemp, level) {
+-  document.getElementById('batVal').innerHTML = batTemp + '<span style="font-size:14px">°C</span>';
+-  document.getElementById('batBar').style.height = Math.min(batTemp/60*100,100)+'%';
+-
+-  // Custom thresholds: 37°C = Warm, 42°C = Hot
+-  let customLevel, color, title, msg;
+-  if (batTemp >= 42) {
+-    customLevel = 'HOT';    color = '#ff3300';
+-    title = 'Hot';          msg   = 'Battery at ' + batTemp + '°C — consider a break';
+-  } else if (batTemp >= 37) {
+-    customLevel = 'WARM';   color = '#ff6b00';
+-    title = 'Warm';         msg   = 'Battery at ' + batTemp + '°C — monitor it';
+-  } else {
+-    customLevel = 'COOL';   color = '#00ff88';
+-    title = 'Temperature Normal'; msg = 'Device is running cool';
+-  }
+-
+-  document.getElementById('batStatus').textContent = customLevel;
+-  document.getElementById('batStatus').style.color = color;
+-
+-  // Update minimalistic thermal bar
+-  const alertEl = document.getElementById('thermalAlert');
+-  const titleEl = document.getElementById('alertTitle');
+-  const msgEl   = document.getElementById('alertMsg');
+-  titleEl.textContent = title;
+-  msgEl.textContent   = msg;
+-  alertEl.style.borderColor = color + '55';
+-  alertEl.style.background  = color + '10';
+-  titleEl.style.color = color;
+-  msgEl.style.color   = color;
+-}
+-
+-// ── Load all saved data — JS pulls directly from bridge (safe, no escaping issues) ──
+-function loadSavedData(aggro, autoBoost) {
+-  if (!window.GameBooster) return;
+-  try {
+-    // Games
+-    try {
+-      const games = JSON.parse(window.GameBooster.getGames());
+-      if (Array.isArray(games) && games.length > 0) {
+-        S.games = games;
+-        renderGames();
+-      }
+-    } catch(e) { console.error('loadGames:', e); }
+-
+-    // Kill list
+-    try {
+-      const kl = JSON.parse(window.GameBooster.getKillList());
+-      if (Array.isArray(kl) && kl.length > 0) {
+-        S.killList = kl;
+-        renderDashKillList();
+-        renderKillPreview();
+-      }
+-    } catch(e) { console.error('loadKillList:', e); }
+-
+-    // Sessions
+-    try {
+-      const ss = JSON.parse(window.GameBooster.getSessions());
+-      if (Array.isArray(ss)) S.sessions = ss;
+-    } catch(e) { console.error('loadSessions:', e); }
+-
+-    // Aggro slider
+-    if (aggro) {
+-      S.aggro = aggro;
+-      const slider = document.getElementById('aggroSlider');
+-      if (slider) slider.value = aggro;
+-      const labels = {1:'🟢 Light',2:'⚖️ Balanced',3:'🔴 Aggressive'};
+-      const lbl = document.getElementById('aggroLabel');
+-      if (lbl) lbl.textContent = labels[aggro]||labels[2];
+-    }
+-
+-    // Auto boost toggle
+-    S.autoBoost = autoBoost;
+-    if (!autoBoost) {
+-      document.getElementById('boostToggle')?.classList.remove('active');
+-      document.getElementById('autoBoostToggle')?.classList.remove('on');
+-      const s = document.getElementById('boostStatus');
+-      if (s) { s.textContent='○  IDLE'; s.style.color='#4a6080'; }
+-    }
+-  } catch(e) { console.error('loadSavedData error:', e); }
+-}
+-
+-// Called by Kotlin after session ends — re-pull fresh data
+-function loadSessions() {
+-  if (!window.GameBooster) return;
+-  try {
+-    S.sessions = JSON.parse(window.GameBooster.getSessions()) || [];
+-    if (document.getElementById('screen-history').classList.contains('active')) renderHistory();
+-  } catch(e) {}
+-}
+-
+-function loadGames() {
+-  if (!window.GameBooster) return;
+-  try {
+-    S.games = JSON.parse(window.GameBooster.getGames()) || [];
+-    if (document.getElementById('screen-games').classList.contains('active')) renderGames();
+-  } catch(e) {}
+-}
+-
+-function onBoostActivated(name, pkg) {
+-  document.getElementById('boostStatus').textContent='⚡ ACTIVE';
+-  document.getElementById('boostStatus').style.color='#00f5ff';
+-  document.getElementById('boostToggle').classList.add('active');
+-  document.getElementById('activeGameName').textContent=name;
+-  document.getElementById('activeGamePkg').textContent=pkg;
+-  document.getElementById('boostTag').style.display='block';
+-}
+-
+-function onBoostDeactivated() {
+-  document.getElementById('boostTag').style.display='none';
+-  document.getElementById('boostStatus').textContent='○  IDLE';
+-  document.getElementById('boostStatus').style.color='#4a6080';
+-  document.getElementById('boostToggle').classList.remove('active');
+-}
+-
+-function onRamFreed(mb) {
+-  const el=document.getElementById('ramVal');
+-  const cur=parseInt(el.textContent)||0;
+-  animateValue(el,cur,cur+mb,800,' MB');
+-}
+-
+-function onThermalCritical(temp) {
+-  document.getElementById('alertTitle').textContent='🚨 CRITICAL TEMPERATURE';
+-  document.getElementById('alertMsg').textContent='CPU at '+temp+'°C! Boost paused.';
+-  const a=document.getElementById('thermalAlert');
+-  a.style.borderColor='#ff2d55'; a.style.background='rgba(255,45,85,.1)';
+-}
+-
+-function animateValue(el,s,e,d,sfx) {
+-  const st=performance.now();
+-  function u(t){const p=Math.min((t-st)/d,1);const ea=1-Math.pow(1-p,3);el.innerHTML=Math.round(s+(e-s)*ea)+'<span style="font-size:14px">'+sfx+'</span>';if(p<1)requestAnimationFrame(u);}
+-  requestAnimationFrame(u);
+-}
+-
+-// ═══════════════════════════════════
+-// INIT — called after page fully loads
+-// ═══════════════════════════════════
+-window.addEventListener('load', () => {
+-  renderKillPreview();
+-
+-  function tryLoad() {
+-    if (!window.GameBooster) { setTimeout(tryLoad, 200); return; }
+-    try {
+-      const aggro     = parseInt(window.GameBooster.getSetting('aggro') || '2');
+-      const autoBoost = window.GameBooster.getSetting('autoBoost') !== 'false';
+-      loadSavedData(aggro, autoBoost);
+-    } catch(e) { setTimeout(tryLoad, 200); return; }
+-    try {
+-      const ready = window.GameBooster.isShizukuReady();
+-      const badge = document.getElementById('shizukuBadge');
+-      const dot   = document.getElementById('shizukuDot');
+-      const txt   = document.getElementById('shizukuStatusText');
+-      if (ready) {
+-        dot.style.background='var(--green)'; dot.style.boxShadow='0 0 6px var(--green)';
+-        txt.textContent='Connected and ready ✅';
+-      } else {
+-        badge.style.borderColor='rgba(255,45,85,.5)'; badge.style.color='#ff2d55';
+-        badge.innerHTML='<div class="dot" style="background:#ff2d55;animation:none"></div> SHIZUKU OFFLINE';
+-        dot.style.background='var(--red)'; txt.textContent='Not connected — open Shizuku app first';
+-      }
+-    } catch(e) {}
+-  }
+-  setTimeout(tryLoad, 150);
+-});
+-</script>
+-</body>
+-</html>
+Index: app/src/main/AndroidManifest.xml
+===================================================================
+diff --git a/app/src/main/AndroidManifest.xml b/app/src/main/AndroidManifest.xml
+deleted file mode 100644
+--- a/app/src/main/AndroidManifest.xml
++++ /dev/null
+@@ -1,60 +0,0 @@
+-<?xml version="1.0" encoding="utf-8"?>
+-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+-    xmlns:tools="http://schemas.android.com/tools">
+-
+-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+-    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+-        tools:ignore="ProtectedPermissions" />
+-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+-    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+-        tools:ignore="QueryAllPackagesPermission" />
+-    <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES" />
+-    <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
+-    <uses-permission android:name="android.permission.BLUETOOTH" />
+-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+-    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+-
+-    <queries>
+-        <intent>
+-            <action android:name="android.intent.action.MAIN" />
+-            <category android:name="android.intent.category.LAUNCHER" />
+-        </intent>
+-    </queries>
+-
+-    <application
+-        android:allowBackup="true"
+-        android:icon="@xml/ic_launcher"
+-        android:roundIcon="@xml/ic_launcher"
+-        android:label="GameBooster"
+-        android:supportsRtl="true"
+-        android:theme="@style/Theme.GameBooster">
+-
+-        <activity
+-            android:name=".ui.MainActivity"
+-            android:exported="true"
+-            android:screenOrientation="portrait">
+-            <intent-filter>
+-                <action android:name="android.intent.action.MAIN" />
+-                <category android:name="android.intent.category.LAUNCHER" />
+-            </intent-filter>
+-        </activity>
+-
+-        <service
+-            android:name=".service.BoosterForegroundService"
+-            android:exported="false"
+-            android:foregroundServiceType="specialUse" />
+-
+-        <provider
+-            android:name="rikka.shizuku.ShizukuProvider"
+-            android:authorities="${applicationId}.shizuku"
+-            android:multiprocess="false"
+-            android:enabled="true"
+-            android:exported="true"
+-            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+-
+-    </application>
+-
+-</manifest>
+Index: app/build.gradle
+===================================================================
+diff --git a/app/build.gradle b/app/build.gradle
+deleted file mode 100644
+--- a/app/build.gradle
++++ /dev/null
+@@ -1,61 +0,0 @@
+-plugins {
+-    id 'com.android.application'
+-    id 'org.jetbrains.kotlin.android'
+-}
+-
+-android {
+-    namespace 'com.gamebooster'
+-    compileSdk 34
+-
+-    defaultConfig {
+-        applicationId "com.gamebooster"
+-        minSdk 26
+-        targetSdk 34
+-        versionCode 1
+-        versionName "1.0"
+-    }
+-
+-    buildTypes {
+-        release {
+-            minifyEnabled false
+-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+-        }
+-    }
+-
+-    compileOptions {
+-        sourceCompatibility JavaVersion.VERSION_1_8
+-        targetCompatibility JavaVersion.VERSION_1_8
+-    }
+-
+-    kotlinOptions {
+-        jvmTarget = '1.8'
+-    }
+-
+-    buildFeatures {
+-        viewBinding true
+-        // aidl disabled — using manual Binder instead
+-    }
+-}
+-
+-dependencies {
+-    // Shizuku
+-    implementation 'dev.rikka.shizuku:api:13.1.5'
+-    implementation 'dev.rikka.shizuku:provider:13.1.5'
+-
+-    // Coroutines
+-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+-
+-    // Lifecycle
+-    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0'
+-    implementation 'androidx.lifecycle:lifecycle-service:2.7.0'
+-    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
+-
+-    // AndroidX
+-    implementation 'androidx.core:core-ktx:1.12.0'
+-    implementation 'androidx.appcompat:appcompat:1.6.1'
+-    implementation 'com.google.android.material:material:1.11.0'
+-    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+-
+-    // DataStore
+-    implementation 'androidx.datastore:datastore-preferences:1.0.0'
+-}
+\ No newline at end of file
+Index: .idea/misc.xml
+===================================================================
+diff --git a/.idea/misc.xml b/.idea/misc.xml
+deleted file mode 100644
+--- a/.idea/misc.xml
++++ /dev/null
+@@ -1,10 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<project version="4">
+-  <component name="ExternalStorageConfigurationManager" enabled="true" />
+-  <component name="ProjectRootManager" version="2" languageLevel="JDK_18" project-jdk-name="corretto-18" project-jdk-type="JavaSDK">
+-    <output url="file://$PROJECT_DIR$/build/classes" />
+-  </component>
+-  <component name="ProjectType">
+-    <option name="id" value="Android" />
+-  </component>
+-</project>
+\ No newline at end of file
+Index: .idea/.gitignore
+===================================================================
+diff --git a/.idea/.gitignore b/.idea/.gitignore
+deleted file mode 100644
+--- a/.idea/.gitignore
++++ /dev/null
+@@ -1,3 +0,0 @@
+-# Default ignored files
+-/shelf/
+-/workspace.xml
+Index: .idea/gradle.xml
+===================================================================
+diff --git a/.idea/gradle.xml b/.idea/gradle.xml
+deleted file mode 100644
+--- a/.idea/gradle.xml
++++ /dev/null
+@@ -1,19 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<project version="4">
+-  <component name="GradleMigrationSettings" migrationVersion="1" />
+-  <component name="GradleSettings">
+-    <option name="linkedExternalProjectsSettings">
+-      <GradleProjectSettings>
+-        <option name="testRunner" value="CHOOSE_PER_TEST" />
+-        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+-        <option name="gradleJvm" value="corretto-18" />
+-        <option name="modules">
+-          <set>
+-            <option value="$PROJECT_DIR$" />
+-            <option value="$PROJECT_DIR$/app" />
+-          </set>
+-        </option>
+-      </GradleProjectSettings>
+-    </option>
+-  </component>
+-</project>
+\ No newline at end of file
+Index: .idea/compiler.xml
+===================================================================
+diff --git a/.idea/compiler.xml b/.idea/compiler.xml
+deleted file mode 100644
+--- a/.idea/compiler.xml
++++ /dev/null
+@@ -1,6 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<project version="4">
+-  <component name="CompilerConfiguration">
+-    <bytecodeTargetLevel target="18" />
+-  </component>
+-</project>
+\ No newline at end of file
+Index: .idea/migrations.xml
+===================================================================
+diff --git a/.idea/migrations.xml b/.idea/migrations.xml
+deleted file mode 100644
+--- a/.idea/migrations.xml
++++ /dev/null
+@@ -1,10 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<project version="4">
+-  <component name="ProjectMigrations">
+-    <option name="MigrateToGradleLocalJavaHome">
+-      <set>
+-        <option value="$PROJECT_DIR$" />
+-      </set>
+-    </option>
+-  </component>
+-</project>
+\ No newline at end of file
+Index: .idea/deviceManager.xml
+===================================================================
+diff --git a/.idea/deviceManager.xml b/.idea/deviceManager.xml
+deleted file mode 100644
+--- a/.idea/deviceManager.xml
++++ /dev/null
+@@ -1,13 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<project version="4">
+-  <component name="DeviceTable">
+-    <option name="columnSorters">
+-      <list>
+-        <ColumnSorterState>
+-          <option name="column" value="Name" />
+-          <option name="order" value="ASCENDING" />
+-        </ColumnSorterState>
+-      </list>
+-    </option>
+-  </component>
+-</project>
+\ No newline at end of file
+Index: .idea/runConfigurations.xml
+===================================================================
+diff --git a/.idea/runConfigurations.xml b/.idea/runConfigurations.xml
+deleted file mode 100644
+--- a/.idea/runConfigurations.xml
++++ /dev/null
+@@ -1,17 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<project version="4">
+-  <component name="RunConfigurationProducerService">
+-    <option name="ignoredProducers">
+-      <set>
+-        <option value="com.intellij.execution.junit.AbstractAllInDirectoryConfigurationProducer" />
+-        <option value="com.intellij.execution.junit.AllInPackageConfigurationProducer" />
+-        <option value="com.intellij.execution.junit.PatternConfigurationProducer" />
+-        <option value="com.intellij.execution.junit.TestInClassConfigurationProducer" />
+-        <option value="com.intellij.execution.junit.UniqueIdConfigurationProducer" />
+-        <option value="com.intellij.execution.junit.testDiscovery.JUnitTestDiscoveryConfigurationProducer" />
+-        <option value="org.jetbrains.kotlin.idea.junit.KotlinJUnitRunConfigurationProducer" />
+-        <option value="org.jetbrains.kotlin.idea.junit.KotlinPatternConfigurationProducer" />
+-      </set>
+-    </option>
+-  </component>
+-</project>
+\ No newline at end of file
+Index: gradle/wrapper/gradle-wrapper.properties
+===================================================================
+diff --git a/gradle/wrapper/gradle-wrapper.properties b/gradle/wrapper/gradle-wrapper.properties
+deleted file mode 100644
+--- a/gradle/wrapper/gradle-wrapper.properties
++++ /dev/null
+@@ -1,5 +0,0 @@
+-distributionBase=GRADLE_USER_HOME
+-distributionPath=wrapper/dists
+-distributionUrl=https\://services.gradle.org/distributions/gradle-8.4-bin.zip
+-zipStoreBase=GRADLE_USER_HOME
+-zipStorePath=wrapper/dists
+Index: .gitignore
+===================================================================
+diff --git a/.gitignore b/.gitignore
+deleted file mode 100644
+--- a/.gitignore
++++ /dev/null
+@@ -1,12 +0,0 @@
+-*.iml
+-.gradle
+-/local.properties
+-/.idea/caches/build_file_checksums.ser
+-/.idea/libraries
+-/.idea/modules.xml
+-/.idea/workspace.xml
+-.DS_Store
+-/build
+-/captures
+-.externalNativeBuild
+-
+Index: build.gradle
+===================================================================
+diff --git a/build.gradle b/build.gradle
+deleted file mode 100644
+--- a/build.gradle
++++ /dev/null
+@@ -1,27 +0,0 @@
+-// Top-level build file where you can add configuration options common to all sub-projects/modules.
+-
+-buildscript {
+-    ext.kotlin_version = "1.9.24"
+-    repositories {
+-        google()
+-        mavenCentral()
+-    }
+-    dependencies {
+-        classpath 'com.android.tools.build:gradle:8.3.2'
+-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+-        // NOTE: Do not place your application dependencies here; they belong
+-        // in the individual module build.gradle files
+-    }
+-}
+-
+-allprojects {
+-    repositories {
+-        google()
+-        mavenCentral()
+-    }
+-}
+-
+-task clean(type: Delete) {
+-    delete rootProject.buildDir
+-}
+-
+Index: settings.gradle
+===================================================================
+diff --git a/settings.gradle b/settings.gradle
+deleted file mode 100644
+--- a/settings.gradle
++++ /dev/null
+@@ -1,1 +0,0 @@
+-include ':app'
+Index: local.properties
+===================================================================
+diff --git a/local.properties b/local.properties
+deleted file mode 100644
+--- a/local.properties
++++ /dev/null
+@@ -1,10 +0,0 @@
+-## This file must *NOT* be checked into Version Control Systems,
+-# as it contains information specific to your local configuration.
+-#
+-# Location of the SDK. This is only used by Gradle.
+-# For customization when using a Version Control System, please read the
+-# header note.
+-#Tue Apr 21 09:09:52 IST 2026
+-cmake.dir=/opt/cmake/cmake-3.30.3
+-ndk.dir=/opt/ndk/android-ndk-r29
+-sdk.dir=C\:\\Users\\Admin\\AppData\\Local\\Android\\Sdk
+Index: gradle.properties
+===================================================================
+diff --git a/gradle.properties b/gradle.properties
+deleted file mode 100644
+--- a/gradle.properties
++++ /dev/null
+@@ -1,9 +0,0 @@
+-android.useAndroidX=true
+-android.enableJetifier=true
+-
+-org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+-
+-# Move Gradle cache OUT of /home/test (important for Run button)
+-org.gradle.user.home=/storage/internal_new/project/GameBooster/.gradle
+-
+-# 🔥 IMPORTANT FIX: stabilize AAPT2 in AndroidIDE
+diff --git a/app/src/main/java/com/gamebooster/booster/GameOptimizer.kt b/app/src/main/java/com/gamebooster/booster/GameOptimizer.kt
+deleted file mode 100644
+diff --git a/app/src/main/java/com/gamebooster/booster/WhitelistManager.kt b/app/src/main/java/com/gamebooster/booster/WhitelistManager.kt
+deleted file mode 100644
+diff --git a/app/src/main/java/com/gamebooster/booster/ForegroundDetector.kt b/app/src/main/java/com/gamebooster/booster/ForegroundDetector.kt
+deleted file mode 100644
+diff --git a/app/src/main/java/com/gamebooster/monitor/CpuMonitor.kt b/app/src/main/java/com/gamebooster/monitor/CpuMonitor.kt
+deleted file mode 100644
+diff --git a/app/src/main/java/com/gamebooster/monitor/FpsMonitor.kt b/app/src/main/java/com/gamebooster/monitor/FpsMonitor.kt
+deleted file mode 100644
+diff --git a/app/src/main/java/com/gamebooster/monitor/RamMonitor.kt b/app/src/main/java/com/gamebooster/monitor/RamMonitor.kt
+deleted file mode 100644
+diff --git a/app/src/main/java/com/gamebooster/monitor/ThermalMonitor.kt b/app/src/main/java/com/gamebooster/monitor/ThermalMonitor.kt
+deleted file mode 100644
+diff --git a/app/src/main/java/com/gamebooster/service/ShizukuKeepAlive.kt b/app/src/main/java/com/gamebooster/service/ShizukuKeepAlive.kt
+deleted file mode 100644
+diff --git a/app/src/main/java/com/gamebooster/shizuku/ShellService.kt b/app/src/main/java/com/gamebooster/shizuku/ShellService.kt
+deleted file mode 100644
+diff --git a/app/src/main/java/com/gamebooster/shizuku/IShellService.kt b/app/src/main/java/com/gamebooster/shizuku/IShellService.kt
+deleted file mode 100644
+diff --git a/app/src/main/java/com/gamebooster/shizuku/ShizukuCommandRunner.kt b/app/src/main/java/com/gamebooster/shizuku/ShizukuCommandRunner.kt
+deleted file mode 100644
+diff --git a/app/src/test/java/com/gamebooster/ExampleUnitTest.kt b/app/src/test/java/com/gamebooster/ExampleUnitTest.kt
+deleted file mode 100644
+diff --git a/app/src/androidTest/java/com/gamebooster/ExampleInstrumentedTest.kt b/app/src/androidTest/java/com/gamebooster/ExampleInstrumentedTest.kt
+deleted file mode 100644
+diff --git a/app/proguard-rules.pro b/app/proguard-rules.pro
+deleted file mode 100644
+diff --git a/app.gitignore b/app.gitignore
+deleted file mode 100644
+diff --git a/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png b/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
+deleted file mode 100644
+index e69de29bb2d1d6434b8b29ae775ad8c2e48c5391..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+Hc$@<O00001
+
+diff --git a/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png b/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png
+deleted file mode 100644
+index e69de29bb2d1d6434b8b29ae775ad8c2e48c5391..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+Hc$@<O00001
+
+diff --git a/gradle/wrapper/gradle-wrapper.jar b/gradle/wrapper/gradle-wrapper.jar
+deleted file mode 100644
+index e69de29bb2d1d6434b8b29ae775ad8c2e48c5391..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+Hc$@<O00001
+
+diff --git a/gradlew b/gradlew
+deleted file mode 100644
+index e69de29bb2d1d6434b8b29ae775ad8c2e48c5391..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+Hc$@<O00001
+
+diff --git a/gradlew.bat b/gradlew.bat
+deleted file mode 100644
+index e69de29bb2d1d6434b8b29ae775ad8c2e48c5391..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+Hc$@<O00001
+
